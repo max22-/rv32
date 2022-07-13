@@ -17,8 +17,7 @@ void error(const char *msg)
 #define RS1(instr) ((instr >> 15) & 0x1f)
 #define IMM_I(instr) ((instr >> 20) & 0xfff)
 #define IMM_J(instr)			\
-  (					\
-   ((instr & 0x7fe00000) >> 20)		\
+  (((instr & 0x7fe00000) >> 20)		\
    | ((instr & 0x100000) >> 9)		\
    | (instr & 0xff000)			\
    | ((instr & 0x80000000) >> 11))	
