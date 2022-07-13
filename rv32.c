@@ -15,8 +15,16 @@ void error(const char *msg)
 #define RD(instr) ((instr >> 7) & 0x1f)
 #define FUNCT3(instr) ((instr >> 12) & 0x7)
 #define RS1(instr) ((instr >> 15) & 0x1f)
-#define I_IMM(instr) ((instr >> 20) & 0xfff)
-#define J_IMM(instr) ((instr >> 12) & 0x7ffff)
+#define IMM_I(instr) ((instr >> 20) & 0xfff)
+#define IMM_J(instr)			\
+  (					\
+   ((instr & 0x7fe00000) >> 20)		\
+   | ((instr & 0x100000) >> 9)		\
+   | (instr & 0xff000)			\
+   | ((instr & 0x80000000) >> 11))	
+							
+
+#define SEXT(x, n) (x & (1 << n) ? x | (0xFFFFFFFF << n) : x)
 
 typedef struct {
   uint32_t r[32], pc;
@@ -45,10 +53,18 @@ void rv32_cycle(RV32 *rv32)
     printf("\trd=x%d\n", RD(instr));
     printf("\tfunct3=%x\n", FUNCT3(instr));
     printf("\trs1=x%d\n", RS1(instr));
-    printf("\timm=%d\n", I_IMM(instr));
+    printf("\timm=%d\n", IMM_I(instr));
   } else if(OPCODE(instr) == 0x6f) {
     printf("\trd=x%d\n", RD(instr));
-    printf("\timm=0x%x\n", J_IMM(instr));
+    printf("\timm=0x%x\n", IMM_J(instr));
+    printf("\tsext(imm)=0x%x\n", SEXT(IMM_J(instr), 20));
+
+    printf("\tdebug:\n");
+    printf("\t%x\n", ((instr & 0x7fe00000) >> 20));
+    printf("\t%x\n", ((instr & 0x100000) >> 9));
+    printf("\t%x\n", (instr & 0xff000));
+    printf("\t%x\n", ((instr & 0x80000000) >> 11));
+    
   }
   
 }
