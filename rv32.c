@@ -56,14 +56,7 @@ void rv32_cycle(RV32 *rv32)
   } else if(OPCODE(instr) == 0x6f) {
     printf("\trd=x%d\n", RD(instr));
     printf("\timm=0x%x\n", IMM_J(instr));
-    printf("\tsext(imm)=0x%x\n", SEXT(IMM_J(instr), 20));
-
-    printf("\tdebug:\n");
-    printf("\t%x\n", ((instr & 0x7fe00000) >> 20));
-    printf("\t%x\n", ((instr & 0x100000) >> 9));
-    printf("\t%x\n", (instr & 0xff000));
-    printf("\t%x\n", ((instr & 0x80000000) >> 11));
-    
+    printf("\tsext(imm)=0x%x\n", SEXT(IMM_J(instr), 20));    
   }
   
 }
