@@ -30,6 +30,13 @@ typedef struct {
   uint8_t mem[1];
 } RV32;
 
+const char *rname[] = {
+  "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2",
+  "s0", "s1", "a0", "a1", "a2", "a3", "a4", "a5",
+  "a6", "a7", "s2", "s3", "s4", "s5", "s6", "s7",
+  "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6"
+};
+
 RV32 *rv32_new(uint32_t mem_size)
 {
   RV32 *rv32 = (RV32*)calloc(1, sizeof(RV32) + mem_size);
@@ -42,23 +49,54 @@ void rv32_free(RV32 *rv32)
     free(rv32);
 }
 
+void rv32_dump(RV32 *rv32)
+{
+  int i;
+  for(i = 0; i < 32; i++) {
+    printf("%s=0x%08x\t", rname[i], rv32->r[i]);
+    if((i+1) % 8 == 0)
+      printf("\n");
+  }
+  printf("pc = 0x%08x\n", rv32->pc);
+}
+
 void rv32_cycle(RV32 *rv32)
 {
+  uint32_t opcode, rd, rs1, imm;
   uint32_t instr = *(uint32_t*)&rv32->mem[rv32->pc];
-  rv32->pc += 4;
-  printf("%08x\n", instr);
-  printf("\topcode = 0x%x\n", OPCODE(instr));
-  if(OPCODE(instr) == 0x13) {
-    printf("\trd=x%d\n", RD(instr));
-    printf("\tfunct3=%x\n", FUNCT3(instr));
-    printf("\trs1=x%d\n", RS1(instr));
-    printf("\timm=%d\n", IMM_I(instr));
-  } else if(OPCODE(instr) == 0x6f) {
-    printf("\trd=x%d\n", RD(instr));
-    printf("\timm=0x%x\n", IMM_J(instr));
-    printf("\tsext(imm)=0x%x\n", SEXT(IMM_J(instr), 20));    
+  rv32->r[0] = 0;
+  opcode = OPCODE(instr);
+  switch(opcode) {
+  case 0x13:
+    switch(FUNCT3(instr)) {
+    case 0x00:
+      rd = RD(instr);
+      rs1 = RS1(instr);
+      imm = SEXT(IMM_I(instr), 12);
+      rv32->r[rd] = rv32->r[rs1] + (int32_t)imm;
+      printf("addi %s, %s, 0x%x\n", rname[rd], rname[rs1], imm);
+      break;
+    }
+    rv32->pc += 4;
+    break;
+  case 0x6f: /* jal */
+    rd = RD(instr);
+    imm = SEXT(IMM_J(instr), 20);
+    rv32->r[rd] = rv32->pc + 4;
+    rv32->pc += (int32_t)imm;
+    printf("jal %s, 0x%x\n", rname[rd], imm);
+    break;
+  case 0x73: /* ecall */
+    if(rv32->r[17] == 1)
+      printf("%d\n", rv32->r[10]);
+    else if(rv32->r[17] == 93)
+      exit(rv32->r[10]);
+    rv32->pc += 4;
+    break;
+  default:
+    error("Invalid opcode");
+    break;
   }
-  
 }
 
 int main(int argc, char *argv[])
@@ -87,9 +125,8 @@ int main(int argc, char *argv[])
   }
   fclose(f);
 
-  rv32_cycle(rv32);
-  rv32_cycle(rv32);
-  rv32_cycle(rv32);
+  while(1)
+    rv32_cycle(rv32);
   
   free(rv32);
   return 0;
