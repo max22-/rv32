@@ -3,3 +3,5 @@ rv32
 program.bin
 *#*
 .#*
+program.elf
+program.o

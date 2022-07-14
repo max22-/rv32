@@ -1,10 +1,19 @@
-all: rv32
+all: rv32 program.bin
 
 rv32: rv32.c
 	gcc rv32.c -o rv32 -Wall -std=c89 -DUSE_C_STDLIB
 
-run: rv32
+program.bin: program.elf
+	riscv64-unknown-elf-objcopy program.elf -O binary program.bin
+
+program.elf: program.o
+	riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 program.o -o program.elf -nostdlib -static
+
+program.o: program.s
+	riscv64-unknown-elf-as -march=rv32im -mabi=ilp32 program.s -o program.o
+
+run: rv32 program.bin
 	./rv32 program.bin
 
 clean:
-	rm rv32 -f
+	rm -f rv32 program.bin program.elf program.o
