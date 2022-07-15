@@ -12,8 +12,13 @@ program.elf: program.o
 program.o: program.s
 	riscv64-unknown-elf-as -march=rv32im -mabi=ilp32 program.s -o program.o
 
+.PHONY: run disassemble clean
+
 run: rv32 program.bin
 	./rv32 program.bin
+
+disassemble: program.elf
+	riscv64-unknown-elf-objdump -d program.elf
 
 clean:
 	rm -f rv32 program.bin program.elf program.o
