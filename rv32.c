@@ -14,11 +14,14 @@ void error(const char *msg)
 
 #endif
 
+#define INVALID_INSTRUCTION() error("Invalid instruction")
+
 #define SEXT(x, n) (x & (1 << n) ? x | (0xFFFFFFFF << n) : x)
 
 #define OPCODE (instr & 0x7f)
 #define RD ((instr >> 7) & 0x1f)
 #define FUNCT3 ((instr >> 12) & 0x7)
+#define FUNCT7 ((instr >> 25) & 0x7f)
 #define RS1 ((instr >> 15) & 0x1f)
 #define RS2 ((instr >> 20) & 0x1f)
 #define IMM_I ((instr >> 20) & 0xfff)
@@ -76,6 +79,17 @@ void rv32_cycle(RV32 *rv32)
   uint32_t instr = *(uint32_t*)&rv32->mem[rv32->pc];
   rv32->r[0] = 0;
   switch(OPCODE) {
+  case 0x33:
+    switch(FUNCT3) {
+    case 0x0:
+      if(FUNCT7 == 0x00) /* add */
+	rv32->r[RD] = rv32->r[RS1] + rv32->r[RS2];
+      else if (FUNCT7 == 0x20) /* sub */
+	rv32->r[RD] = rv32->r[RS1] - rv32->r[RS2];
+      else INVALID_INSTRUCTION();
+    }
+    rv32->pc += 4;
+    break;
   case 0x13:
     switch(FUNCT3) {
     case 0x00:
