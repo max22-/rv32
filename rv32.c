@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+/* #define trace(...) printf(__VA_ARGS__) */
+#define trace(...)
+
 void error(const char *msg)
 {
   fprintf(stderr,"%s\n",  msg);
@@ -15,7 +18,13 @@ void error(const char *msg)
 #define RD(instr) ((instr >> 7) & 0x1f)
 #define FUNCT3(instr) ((instr >> 12) & 0x7)
 #define RS1(instr) ((instr >> 15) & 0x1f)
+#define RS2(instr) ((instr >> 20) & 0x1f)
 #define IMM_I(instr) ((instr >> 20) & 0xfff)
+#define IMM_B(instr)			\
+  (((instr & 0xf00) >> 7)		\
+   | ((instr & 0x7e000000) >> 20)	\
+   | ((instr & 0x80) << 4)		\
+   | ((instr & 0x80000000) >> 19))
 #define IMM_J(instr)			\
   (((instr & 0x7fe00000) >> 20)		\
    | ((instr & 0x100000) >> 9)		\
@@ -62,7 +71,7 @@ void rv32_dump(RV32 *rv32)
 
 void rv32_cycle(RV32 *rv32)
 {
-  uint32_t opcode, rd, rs1, imm;
+  uint32_t opcode, rd, rs1, rs2, imm;
   uint32_t instr = *(uint32_t*)&rv32->mem[rv32->pc];
   rv32->r[0] = 0;
   opcode = OPCODE(instr);
@@ -74,17 +83,34 @@ void rv32_cycle(RV32 *rv32)
       rs1 = RS1(instr);
       imm = SEXT(IMM_I(instr), 12);
       rv32->r[rd] = rv32->r[rs1] + (int32_t)imm;
-      printf("addi %s, %s, 0x%x\n", rname[rd], rname[rs1], imm);
+      trace("addi %s, %s, 0x%x\n", rname[rd], rname[rs1], imm);
       break;
     }
     rv32->pc += 4;
+    break;
+  case 0x63:
+    switch(FUNCT3(instr)) {
+    case 0x0: /* beq */
+      rs1 = RS1(instr);
+      rs2 = RS2(instr);
+      imm = SEXT(IMM_B(instr), 13);
+      if(rv32->r[rs1] == rv32->r[rs2])
+	rv32->pc += (int32_t)imm;
+      else
+	rv32->pc += 4;
+      trace("beq %s, %s, 0x%x\n", rname[rs1], rname[rs2], imm);
+      break;
+    default:
+      error("Invalid instruction");
+      break;
+    }
     break;
   case 0x6f: /* jal */
     rd = RD(instr);
     imm = SEXT(IMM_J(instr), 20);
     rv32->r[rd] = rv32->pc + 4;
     rv32->pc += (int32_t)imm;
-    printf("jal %s, 0x%x\n", rname[rd], imm);
+    trace("jal %s, 0x%x\n", rname[rd], imm);
     break;
   case 0x73: /* ecall */
     if(rv32->r[17] == 1)
