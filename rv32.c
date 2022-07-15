@@ -14,25 +14,27 @@ void error(const char *msg)
 
 #endif
 
-#define OPCODE(instr) (instr & 0x7f)
-#define RD(instr) ((instr >> 7) & 0x1f)
-#define FUNCT3(instr) ((instr >> 12) & 0x7)
-#define RS1(instr) ((instr >> 15) & 0x1f)
-#define RS2(instr) ((instr >> 20) & 0x1f)
-#define IMM_I(instr) ((instr >> 20) & 0xfff)
-#define IMM_B(instr)			\
+#define SEXT(x, n) (x & (1 << n) ? x | (0xFFFFFFFF << n) : x)
+
+#define OPCODE (instr & 0x7f)
+#define RD ((instr >> 7) & 0x1f)
+#define FUNCT3 ((instr >> 12) & 0x7)
+#define RS1 ((instr >> 15) & 0x1f)
+#define RS2 ((instr >> 20) & 0x1f)
+#define IMM_I ((instr >> 20) & 0xfff)
+#define SEXT_IMM_I ((int32_t)SEXT(IMM_I, 12))
+#define IMM_B				\
   (((instr & 0xf00) >> 7)		\
    | ((instr & 0x7e000000) >> 20)	\
    | ((instr & 0x80) << 4)		\
    | ((instr & 0x80000000) >> 19))
-#define IMM_J(instr)			\
+#define SEXT_IMM_B ((int32_t)SEXT(IMM_B, 13))
+#define IMM_J				\
   (((instr & 0x7fe00000) >> 20)		\
    | ((instr & 0x100000) >> 9)		\
    | (instr & 0xff000)			\
-   | ((instr & 0x80000000) >> 11))	
-							
-
-#define SEXT(x, n) (x & (1 << n) ? x | (0xFFFFFFFF << n) : x)
+   | ((instr & 0x80000000) >> 11))
+#define SEXT_IMM_J ((int32_t)SEXT(IMM_J, 20))
 
 typedef struct {
   uint32_t r[32], pc;
@@ -71,34 +73,26 @@ void rv32_dump(RV32 *rv32)
 
 void rv32_cycle(RV32 *rv32)
 {
-  uint32_t opcode, rd, rs1, rs2, imm;
   uint32_t instr = *(uint32_t*)&rv32->mem[rv32->pc];
   rv32->r[0] = 0;
-  opcode = OPCODE(instr);
-  switch(opcode) {
+  switch(OPCODE) {
   case 0x13:
-    switch(FUNCT3(instr)) {
+    switch(FUNCT3) {
     case 0x00:
-      rd = RD(instr);
-      rs1 = RS1(instr);
-      imm = SEXT(IMM_I(instr), 12);
-      rv32->r[rd] = rv32->r[rs1] + (int32_t)imm;
-      trace("addi %s, %s, 0x%x\n", rname[rd], rname[rs1], imm);
+      rv32->r[RD] = rv32->r[RS1] + SEXT_IMM_I;
+      trace("addi %s, %s, 0x%x\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     }
     rv32->pc += 4;
     break;
   case 0x63:
-    switch(FUNCT3(instr)) {
+    switch(FUNCT3) {
     case 0x0: /* beq */
-      rs1 = RS1(instr);
-      rs2 = RS2(instr);
-      imm = SEXT(IMM_B(instr), 13);
-      if(rv32->r[rs1] == rv32->r[rs2])
-	rv32->pc += (int32_t)imm;
+      if(rv32->r[RS1] == rv32->r[RS2])
+	rv32->pc += SEXT_IMM_B;
       else
 	rv32->pc += 4;
-      trace("beq %s, %s, 0x%x\n", rname[rs1], rname[rs2], imm);
+      trace("beq %s, %s, 0x%x\n", rname[RS1], rname[RS2], SEXT_IMM_B);
       break;
     default:
       error("Invalid instruction");
@@ -106,11 +100,9 @@ void rv32_cycle(RV32 *rv32)
     }
     break;
   case 0x6f: /* jal */
-    rd = RD(instr);
-    imm = SEXT(IMM_J(instr), 20);
-    rv32->r[rd] = rv32->pc + 4;
-    rv32->pc += (int32_t)imm;
-    trace("jal %s, 0x%x\n", rname[rd], imm);
+    rv32->r[RD] = rv32->pc + 4;
+    rv32->pc += SEXT_IMM_J;
+    trace("jal %s, 0x%x\n", rname[RD], SEXT_IMM_J);
     break;
   case 0x73: /* ecall */
     if(rv32->r[17] == 1)
@@ -154,6 +146,6 @@ int main(int argc, char *argv[])
   while(1)
     rv32_cycle(rv32);
   
-  free(rv32);
+  rv32_free(rv32);
   return 0;
 }
