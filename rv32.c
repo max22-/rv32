@@ -87,7 +87,18 @@ void rv32_cycle(RV32 *rv32)
       else if (FUNCT7 == 0x20) /* sub */
 	rv32->r[RD] = rv32->r[RS1] - rv32->r[RS2];
       else INVALID_INSTRUCTION();
+      break;
+    case 0x4:
+      if(FUNCT7!=0)
+	INVALID_INSTRUCTION();
+      else
+	rv32->r[RD] = rv32->r[RS1] ^ rv32->r[RS2];
+      break;
+    default:
+      INVALID_INSTRUCTION();
+      break;
     }
+    
     rv32->pc += 4;
     break;
   case 0x13:

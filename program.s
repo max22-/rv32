@@ -5,6 +5,12 @@ _start:
 	li t1, 10
 	li t2, 10
 	li t3, 1
+
+	addi a7, zero, 1
+	li a0, 45
+	xor a0, a0, t1
+	ecall
+	
 loop:
 	addi t0, t0, 1
 	beq t0, t1, end
