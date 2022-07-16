@@ -104,7 +104,7 @@ void rv32_cycle(RV32 *rv32)
       if(FUNCT7 == 0x0) /* srl */
 	rv32->r[RD] = rv32->r[RS1] >> rv32->r[RS2];
       else if(FUNCT7 == 0x2) /* sra */
-	rv32->r[RD] = (int32_t)r->[RS1] >> rv32->r[RS2];
+	rv32->r[RD] = (int32_t)rv32->r[RS1] >> rv32->r[RS2];
       else INVALID_INSTRUCTION();
       break;
     default:
