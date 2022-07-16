@@ -88,11 +88,24 @@ void rv32_cycle(RV32 *rv32)
 	rv32->r[RD] = rv32->r[RS1] - rv32->r[RS2];
       else INVALID_INSTRUCTION();
       break;
-    case 0x4:
-      if(FUNCT7!=0)
-	INVALID_INSTRUCTION();
-      else
-	rv32->r[RD] = rv32->r[RS1] ^ rv32->r[RS2];
+    case 0x4: /* xor */
+      rv32->r[RD] = rv32->r[RS1] ^ rv32->r[RS2];
+      break;
+    case 0x6: /* or */
+      rv32->r[RD] = rv32->r[RS1] | rv32->r[RS2];
+      break;
+    case 0x7: /* and */
+      rv32->r[RD] = rv32->r[RS1] & rv32->r[RS2];
+      break;
+    case 0x1: /* sll */
+      rv32->r[RD] = rv32->r[RS1] << rv32->r[RS2];
+      break;
+    case 0x5:
+      if(FUNCT7 == 0x0) /* srl */
+	rv32->r[RD] = rv32->r[RS1] >> rv32->r[RS2];
+      else if(FUNCT7 == 0x2) /* sra */
+	rv32->r[RD] = (int32_t)r->[RS1] >> rv32->r[RS2];
+      else INVALID_INSTRUCTION();
       break;
     default:
       INVALID_INSTRUCTION();
