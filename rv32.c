@@ -107,18 +107,60 @@ void rv32_cycle(RV32 *rv32)
 	rv32->r[RD] = (int32_t)rv32->r[RS1] >> rv32->r[RS2];
       else INVALID_INSTRUCTION();
       break;
+    case 0x2: /* slt */
+      rv32->r[RD] = (int32_t)rv32->r[RS1] < (int32_t)rv32->r[RS2] ? 1 : 0;
+      break;
+    case 0x3: /* sltu */
+      rv32->r[RD] = rv32->r[RS1] < rv32->r[RS2] ? 1 : 0;
+      break;
     default:
       INVALID_INSTRUCTION();
       break;
     }
-    
     rv32->pc += 4;
     break;
   case 0x13:
     switch(FUNCT3) {
-    case 0x00:
+    case 0x00: /* addi */
       rv32->r[RD] = rv32->r[RS1] + SEXT_IMM_I;
       trace("addi %s, %s, 0x%x\n", rname[RD], rname[RS1], SEXT_IMM_I);
+      break;
+    case 0x4: /* xori */
+      rv32->r[RD] = rv32->r[RS1] ^ SEXT_IMM_I;
+      trace("xori %s, %s, 0x%x\n", rname[RD], rname[RS1], SEXT_IMM_I);
+      break;
+    case 0x6: /* ori */
+      rv32->r[RD] = rv32->r[RS1] | SEXT_IMM_I;
+      trace("ori %s, %s, 0x%x\n", rname[RD], rname[RS1], SEXT_IMM_I);
+      break;
+    case 0x7: /* andi */
+      rv32->r[RD] = rv32->r[RS1] & SEXT_IMM_I;
+      trace("andi %s, %s, 0x%x\n", rname[RD], rname[RS1], SEXT_IMM_I);
+      break;
+    case 0x1: /* slli */
+      rv32->r[RD] = rv32->r[RS1] << (IMM_I & 0x1f);
+      trace("slli %s, %s, 0x%x\n", rname[RD], rname[RS1], IMM_I & 0x1f);
+      break;
+    case 0x5:
+      if(FUNCT7 == 0x00) { /* srli */
+	rv32->r[RD] = rv32->r[RS1] >> (IMM_I & 0x1f);
+	trace("srli %s, %s, 0x%x\n", rname[RD], rname[RS1], IMM_I & 0x1f);
+      } else if(FUNCT7 == 0x02) { /* srai */
+	rv32->r[RD] = (int32_t)rv32->r[RS1] >> (IMM_I & 0x1f);
+	trace("srai %s, %s, 0x%x\n", rname[RD], rname[RS1], IMM_I & 0x1f);
+      }
+      else INVALID_INSTRUCTION();
+      break;
+    case 0x2: /* slti */
+      rv32->r[RD] = (int32_t)rv32->r[RS1] < SEXT_IMM_I ? 1 : 0;
+      trace("andi %s, %s, 0x%x\n", rname[RD], rname[RS1], SEXT_IMM_I);
+      break;
+    case 0x3: /* sltiu */
+      rv32->r[RD] = rv32->r[RS1] < IMM_I ? 1 : 0;
+      trace("sltiu %s, %s, 0x%x\n", rname[RD], rname[RS1], IMM_I);
+      break;
+    default:
+      INVALID_INSTRUCTION();
       break;
     }
     rv32->pc += 4;
