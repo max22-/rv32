@@ -16,7 +16,7 @@ void error(const char *msg)
 
 #define INVALID_INSTRUCTION() error("Invalid instruction")
 
-#define SEXT(x, n) (x & (1 << n) ? x | (0xFFFFFFFF << n) : x)
+#define SEXT(x, n) ((x) & (1 << n) ? (x) | (0xFFFFFFFF << n) : (x))
 
 #define OPCODE (instr & 0x7f)
 #define RD ((instr >> 7) & 0x1f)
@@ -40,6 +40,7 @@ void error(const char *msg)
 #define SEXT_IMM_J ((int32_t)SEXT(IMM_J, 20))
 
 typedef struct {
+  uint32_t mem_size;
   uint32_t r[32], pc;
   uint8_t mem[1];
 } RV32;
@@ -54,6 +55,7 @@ const char *rname[] = {
 RV32 *rv32_new(uint32_t mem_size)
 {
   RV32 *rv32 = (RV32*)calloc(1, sizeof(RV32) + mem_size);
+  rv32->mem_size = mem_size;
   return rv32;
 }
 
@@ -76,7 +78,11 @@ void rv32_dump(RV32 *rv32)
 
 void rv32_cycle(RV32 *rv32)
 {
-  uint32_t instr = *(uint32_t*)&rv32->mem[rv32->pc];
+  uint32_t instr, addr;
+
+  if(rv32->pc >= rv32->mem_size) error("Invalid memory access");
+  instr = *(uint32_t*)&rv32->mem[rv32->pc];
+  
   rv32->r[0] = 0;
   switch(OPCODE) {
   case 0x33:
@@ -158,6 +164,40 @@ void rv32_cycle(RV32 *rv32)
     case 0x3: /* sltiu */
       rv32->r[RD] = rv32->r[RS1] < IMM_I ? 1 : 0;
       trace("sltiu %s, %s, 0x%x\n", rname[RD], rname[RS1], IMM_I);
+      break;
+    default:
+      INVALID_INSTRUCTION();
+      break;
+    }
+    rv32->pc += 4;
+    break;
+  case 0x3:
+    addr = rv32->r[RS1] + SEXT_IMM_I;
+    switch(FUNCT7) {
+    case 0x0: /* lb */
+      if(addr >= rv32->mem_size) error("Invalid memory access");
+      rv32->r[RD] = SEXT(rv32->mem[addr], 8);
+      trace("lb %s, %s, 0x%x\n", rname[RD], rname[RS1], SEXT_IMM_I);
+      break;
+    case 0x1: /* lh */
+      if(addr >= rv32->mem_size - 1) error("Invalid memory access");
+      rv32->r[RD] = SEXT(rv32->mem[addr] | rv32->mem[addr+1] << 8, 16);
+      trace("lh %s, %s, 0x%x\n", rname[RD], rname[RS1], SEXT_IMM_I);
+      break;
+    case 0x2: /* lw */
+      if(addr >= rv32->mem_size - 3) error("Invalid memory access");
+      rv32->r[RD] = rv32->mem[addr] | rv32->mem[addr+1] << 8 | rv32->mem[addr+2] << 16 | rv32->mem[addr+3] << 24;
+      trace("lw %s, %s, 0x%x\n", rname[RD], rname[RS1], SEXT_IMM_I);
+      break;
+    case 0x4: /* lbu */
+      if(addr >= rv32->mem_size) error("Invalid memory access");
+      rv32->r[RD] = rv32->mem[addr];
+      trace("lbu %s, %s, 0x%x\n", rname[RD], rname[RS1], SEXT_IMM_I);
+      break;
+    case 0x5: /* lhu */
+      if(addr >= rv32->mem_size - 1) error("Invalid memory access");
+      rv32->r[RD] = rv32->mem[addr] | rv32->mem[addr+1] << 8;
+      trace("lhu %s, %s, 0x%x\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     default:
       INVALID_INSTRUCTION();
