@@ -12,8 +12,8 @@ program.elf: program.o
 program.o: program.s
 	riscv64-unknown-elf-as -march=rv32im -mabi=ilp32 program.s -o program.o
 
-c_program: c_program.c
-	riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -nostartfiles -nostdlib c_program.c -o c_program
+c_program.bin: c_program.c
+	riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -nostartfiles -nostdlib c_program.c -o c_program.elf && riscv64-unknown-elf-objcopy c_program.elf -O binary c_program.bin
 
 .PHONY: run disassemble clean
 
@@ -24,4 +24,4 @@ disassemble: program.elf
 	riscv64-unknown-elf-objdump -d program.elf
 
 clean:
-	rm -f rv32 program.bin program.elf program.o
+	rm -f rv32 program.bin program.elf program.o c_program.elf c_program.bin

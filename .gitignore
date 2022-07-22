@@ -6,4 +6,4 @@ program.bin
 program.elf
 program.o
 c_program.bin
-c_program
+c_program.elf
