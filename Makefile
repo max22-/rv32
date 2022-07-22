@@ -12,6 +12,9 @@ program.elf: program.o
 program.o: program.s
 	riscv64-unknown-elf-as -march=rv32im -mabi=ilp32 program.s -o program.o
 
+c_program: c_program.c
+	riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -nostartfiles -nostdlib c_program.c -o c_program
+
 .PHONY: run disassemble clean
 
 run: rv32 program.bin
