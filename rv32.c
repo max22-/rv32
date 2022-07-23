@@ -309,11 +309,11 @@ void rv32_cycle(RV32 *rv32)
     break;
   case 0x73: /* ecall */
     switch(IMM_I) {
-    case 0x0:
+    case 0x0: /* ecall */
       ecall(rv32);
       trace("ecall %d\n", rv32->r[17]);
       break;
-    case 0x1:
+    case 0x1: /* ebreak */
       #warning ebreak not implemented
       trace("ebreak\n");
       break;
