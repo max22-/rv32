@@ -233,7 +233,6 @@ void rv32_cycle(RV32 *rv32)
       trace("sw %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_S);
       break;
     default:
-      printf("fuck");
       INVALID_INSTRUCTION();
     }
     rv32->pc += 4;
