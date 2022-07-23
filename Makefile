@@ -1,7 +1,7 @@
 all: rv32 program.bin
 
-rv32: rv32.c
-	gcc rv32.c -o rv32 -Wall -std=c89 -DUSE_C_STDLIB
+rv32: rv32.c rv32.h ecall.c ecall.h
+	gcc rv32.c ecall.c -o rv32 -Wall -std=c89 -DUSE_C_STDLIB
 
 program.bin: program.elf
 	riscv64-unknown-elf-objcopy program.elf -O binary program.bin

@@ -14,6 +14,9 @@ void error(const char *msg)
 
 #endif
 
+#include "rv32.h"
+#include "ecall.h"
+
 #define INVALID_INSTRUCTION() error("Invalid instruction")
 
 #define SEXT(x, n) ((x) & (1 << (n - 1)) ? (x) | (0xFFFFFFFF << n) : (x))
@@ -36,18 +39,14 @@ void error(const char *msg)
    | ((instr & 0x80) << 4)		\
    | ((instr & 0x80000000) >> 19))
 #define SEXT_IMM_B ((int32_t)SEXT(IMM_B, 13))
+#define IMM_U (instr >> 12)
+#define SEXT_IMM_U ((int32_t)SEXT(IMM_U, 20))
 #define IMM_J				\
   (((instr & 0x7fe00000) >> 20)		\
    | ((instr & 0x100000) >> 9)		\
    | (instr & 0xff000)			\
    | ((instr & 0x80000000) >> 11))
 #define SEXT_IMM_J ((int32_t)SEXT(IMM_J, 20))
-
-typedef struct {
-  uint32_t mem_size;
-  uint32_t r[32], pc;
-  uint8_t mem[1];
-} RV32;
 
 const char *rname[] = {
   "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2",
@@ -69,7 +68,7 @@ void rv32_free(RV32 *rv32)
     free(rv32);
 }
 
-void rv32_dump(RV32 *rv32)
+void rv32_dump_registers(RV32 *rv32)
 {
   int i;
   for(i = 0; i < 32; i++) {
@@ -220,7 +219,10 @@ void rv32_cycle(RV32 *rv32)
       trace("sb %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_S);
       break;
     case 0x1: /* sh */
-      #warning not implemented
+      if(addr >= rv32->mem_size) error("Invalid memory access");
+      rv32->mem[addr++] = rv32->r[RS2] & 0xff;
+      rv32->mem[addr++] = (rv32->r[RS2] >> 8) & 0xff;
+      trace("sh %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_S);
       break;
     case 0x2: /* sw */
       if(addr >= rv32->mem_size - 3) error("Invalid memory access");
@@ -245,6 +247,41 @@ void rv32_cycle(RV32 *rv32)
 	rv32->pc += 4;
       trace("beq %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_B);
       break;
+    case 0x1: /* bne */
+      if(rv32->r[RS1] != rv32->r[RS2])
+	rv32->pc += SEXT_IMM_B;
+      else
+	rv32->pc += 4;
+      trace("bne %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_B);
+      break;
+    case 0x4: /* blt */
+      if((int32_t)rv32->r[RS1] < (int32_t)rv32->r[RS2])
+	rv32->pc += SEXT_IMM_B;
+      else
+	rv32->pc += 4;
+      trace("blt %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_B);
+      break;
+    case 0x5: /* bge */
+      if((int32_t)rv32->r[RS1] >= (int32_t)rv32->r[RS2])
+	rv32->pc += SEXT_IMM_B;
+      else
+	rv32->pc += 4;
+      trace("bge %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_B);
+      break;
+    case 0x6: /* bltu */
+      if(rv32->r[RS1] < rv32->r[RS2])
+	rv32->pc += SEXT_IMM_B;
+      else
+	rv32->pc += 4;
+      trace("bltu %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_B);
+      break;
+    case 0x7: /* bgeu */
+      if(rv32->r[RS1] >= rv32->r[RS2])
+	rv32->pc += SEXT_IMM_B;
+      else
+	rv32->pc += 4;
+      trace("bgeu %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_B);
+      break;
     default:
       error("Invalid instruction");
       break;
@@ -256,13 +293,34 @@ void rv32_cycle(RV32 *rv32)
     trace("jal %s, %d\n", rname[RD], SEXT_IMM_J);
     break;
   case 0x67: /* jalr */
-    trace("jalr not implemented yet\n");
+    rv32->r[RD] = rv32->pc + 4;
+    rv32->pc = rv32->r[RS1] + SEXT_IMM_I;
+    trace("jalr %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
+    break;
+  case 0x37: /* lui */
+    rv32->r[RD] = SEXT_IMM_U << 12;
+    rv32-> pc += 4;
+    trace("lui %s, %d\n", rname[RD], SEXT_IMM_U);
+    break;
+  case 0x17: /* auipc */
+    rv32->r[RD] = rv32->pc + (SEXT_IMM_U << 12);
+    rv32->pc += 4;
+    trace("auipc %s, %d\n", rname[RD], SEXT_IMM_U);
     break;
   case 0x73: /* ecall */
-    if(rv32->r[17] == 1)
-      printf("%d\n", rv32->r[10]);
-    else if(rv32->r[17] == 93)
-      exit(rv32->r[10]);
+    switch(IMM_I) {
+    case 0x0:
+      ecall(rv32);
+      trace("ecall %d\n", rv32->r[17]);
+      break;
+    case 0x1:
+      #warning ebreak not implemented
+      trace("ebreak\n");
+      break;
+    default:
+      error("Invalid instruction");
+      break;
+    }
     rv32->pc += 4;
     break;
   default:
@@ -301,8 +359,7 @@ int main(int argc, char *argv[])
   #warning do that better ! ^^
   rv32->r[2] = 0x100; /* we initialize sp */
   
-  /*while(1) */
-  for(i = 0; i < 100; i++)
+  while(!rv32->halted)
     rv32_cycle(rv32);
 
   for(i = 0; i < 0x104; i++) {
