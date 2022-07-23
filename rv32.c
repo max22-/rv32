@@ -91,6 +91,7 @@ void rv32_cycle(RV32 *rv32)
   
   rv32->r[0] = 0;
   switch(OPCODE) {
+    
   case 0x33:
     switch(FUNCT3) {
     case 0x0:
@@ -131,6 +132,7 @@ void rv32_cycle(RV32 *rv32)
     }
     rv32->pc += 4;
     break;
+    
   case 0x13:
     switch(FUNCT3) {
     case 0x00: /* addi */
@@ -177,6 +179,7 @@ void rv32_cycle(RV32 *rv32)
     }
     rv32->pc += 4;
     break;
+    
   case 0x3:
     addr = rv32->r[RS1] + SEXT_IMM_I;
     switch(FUNCT3) {
@@ -211,6 +214,7 @@ void rv32_cycle(RV32 *rv32)
     }
     rv32->pc += 4;
     break;
+    
   case 0x23:
     addr = rv32->r[RS1] + SEXT_IMM_S;
     switch(FUNCT3) {
@@ -238,6 +242,7 @@ void rv32_cycle(RV32 *rv32)
     }
     rv32->pc += 4;
     break;
+    
   case 0x63:
     switch(FUNCT3) {
     case 0x0: /* beq */
@@ -287,26 +292,31 @@ void rv32_cycle(RV32 *rv32)
       break;
     }
     break;
+    
   case 0x6f: /* jal */
     rv32->r[RD] = rv32->pc + 4;
     rv32->pc += SEXT_IMM_J;
     trace("jal %s, %d\n", rname[RD], SEXT_IMM_J);
     break;
+    
   case 0x67: /* jalr */
     rv32->r[RD] = rv32->pc + 4;
     rv32->pc = rv32->r[RS1] + SEXT_IMM_I;
     trace("jalr %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
     break;
+    
   case 0x37: /* lui */
     rv32->r[RD] = SEXT_IMM_U << 12;
     rv32-> pc += 4;
     trace("lui %s, %d\n", rname[RD], SEXT_IMM_U);
     break;
+    
   case 0x17: /* auipc */
     rv32->r[RD] = rv32->pc + (SEXT_IMM_U << 12);
     rv32->pc += 4;
     trace("auipc %s, %d\n", rname[RD], SEXT_IMM_U);
     break;
+    
   case 0x73: /* ecall */
     switch(IMM_I) {
     case 0x0: /* ecall */
