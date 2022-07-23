@@ -367,7 +367,7 @@ int main(int argc, char *argv[])
   fclose(f);
 
   #warning do that better ! ^^
-  rv32->r[2] = 0x100; /* we initialize sp */
+  rv32->r[2] = memsize - 1; /* we initialize sp */
   
   while(!rv32->halted)
     rv32_cycle(rv32);
