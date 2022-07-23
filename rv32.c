@@ -86,7 +86,7 @@ void rv32_cycle(RV32 *rv32)
   if(rv32->pc >= rv32->mem_size) error("Invalid memory access");
   instr = *(uint32_t*)&rv32->mem[rv32->pc];
 
-  printf("pc=%08x\t", rv32->pc);
+  trace("pc=%08x\t", rv32->pc);
   
   rv32->r[0] = 0;
   switch(OPCODE) {
