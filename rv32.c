@@ -87,6 +87,7 @@ void rv32_cycle(RV32 *rv32)
   instr = *(uint32_t*)&rv32->mem[rv32->pc];
 
   trace("pc=%08x\t", rv32->pc);
+  trace("opcode=%02x\t", OPCODE);
   
   rv32->r[0] = 0;
   switch(OPCODE) {
