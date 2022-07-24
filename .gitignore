@@ -3,7 +3,7 @@ rv32
 program.bin
 *#*
 .#*
+*.o
 program.elf
-program.o
 c_program.bin
 c_program.elf
