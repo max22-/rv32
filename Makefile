@@ -30,4 +30,4 @@ disassemble: program.elf
 	riscv64-unknown-elf-objdump -d program.elf
 
 clean:
-	rm -f rv32 program.bin program.elf program.o c_program.elf c_program.bin
+	rm -f *.o rv32 program.bin program.elf c_program.elf c_program.bin
