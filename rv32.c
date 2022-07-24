@@ -424,7 +424,7 @@ int main(int argc, char *argv[])
     if((i+1) % 16 == 0)
       printf("\n");
   }
-  
+  printf("\n");
   rv32_free(rv32);
   return 0;
 }
