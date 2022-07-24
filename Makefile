@@ -1,4 +1,4 @@
-all: rv32 program.bin
+all: rv32 program.bin c_program.bin
 
 rv32: rv32.c rv32.h ecall.c ecall.h
 	gcc rv32.c ecall.c -o rv32 -Wall -std=c89 -DUSE_C_STDLIB
