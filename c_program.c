@@ -27,5 +27,11 @@ void _start()
   y = x * 2 + 1;
   print_int(y);
   print_int(fib(30));
+  x = 45;
+  y = 53;
+  print_int(x*y);
+  x = 15;
+  y = 5;
+  print_int(x/y);
   quit(0);
 }

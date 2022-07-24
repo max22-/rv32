@@ -96,8 +96,40 @@ void rv32_cycle(RV32 *rv32)
     if(FUNCT7 == 0x01) { /* Multiply extension */
       switch(FUNCT3) {
       case 0x0: /* mul */
-	rv32->r[RD] = (int32_t)rv32->r[RS1] * (int32_t)rv32->r[RS2];
+	rv32->r[RD] = (((int64_t)rv32->r[RS1] * (int64_t)rv32->r[RS2]) & 0xFFFFFFFF);
 	trace("mul %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
+	break;
+      case 0x1: /* mulh */
+	rv32->r[RD] = ((int64_t)rv32->r[RS1] * (int64_t)rv32->r[RS2]) >> 32;
+	trace("mulh %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
+	break;
+      case 0x2: /* mulhsu */
+	rv32->r[RD] = ((int64_t)(int32_t)rv32->r[RS1] * (int64_t)rv32->r[RS2]) >> 32;
+	trace("mulhsu %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
+	break;
+      case 0x3: /* mulhu */
+	rv32->r[RD] = ((uint64_t)rv32->r[RS1] * (uint64_t)rv32->r[RS2]) >> 32;
+	trace("mulhu %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
+	break;
+      case 0x4: /* div */
+	if(rv32->r[RS2] == 0) { error("Division by zero"); break; }
+	rv32->r[RD] = (int32_t)rv32->r[RS1] / (int32_t)rv32->r[RS2];
+	trace("div %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
+	break;
+      case 0x5: /* divu */
+	if(rv32->r[RS2] == 0) { error("Division by zero"); break; }
+	rv32->r[RD] = rv32->r[RS1] / rv32->r[RS2];
+	trace("divu %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
+	break;
+      case 0x6: /* rem */
+	if(rv32->r[RS2] == 0) { error("Division by zero"); break; }
+	rv32->r[RD] = (int32_t)rv32->r[RS1] % (int32_t)rv32->r[RS2];
+	trace("rem %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
+	break;
+      case 0x7: /* remu */
+	if(rv32->r[RS2] == 0) { error("Division by zero"); break; }
+	rv32->r[RD] = rv32->r[RS1] % rv32->r[RS2];
+	trace("remu %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
 	break;
       default:
 	INVALID_INSTRUCTION();
