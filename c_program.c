@@ -4,12 +4,6 @@ void print_int(int x)
   asm("ecall");
 }
 
-void quit(int code)
-{
-  asm("li a7, 93");
-  asm("ecall");
-}
-
 int fib(int n)
 {
   if(n == 0) return 0;
