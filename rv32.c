@@ -93,42 +93,55 @@ void rv32_cycle(RV32 *rv32)
   switch(OPCODE) {
     
   case 0x33:
-    switch(FUNCT3) {
-    case 0x0:
-      if(FUNCT7 == 0x00) /* add */
-	rv32->r[RD] = rv32->r[RS1] + rv32->r[RS2];
-      else if (FUNCT7 == 0x20) /* sub */
-	rv32->r[RD] = rv32->r[RS1] - rv32->r[RS2];
-      else INVALID_INSTRUCTION();
-      break;
-    case 0x4: /* xor */
-      rv32->r[RD] = rv32->r[RS1] ^ rv32->r[RS2];
-      break;
-    case 0x6: /* or */
-      rv32->r[RD] = rv32->r[RS1] | rv32->r[RS2];
-      break;
-    case 0x7: /* and */
-      rv32->r[RD] = rv32->r[RS1] & rv32->r[RS2];
-      break;
-    case 0x1: /* sll */
-      rv32->r[RD] = rv32->r[RS1] << rv32->r[RS2];
-      break;
-    case 0x5:
-      if(FUNCT7 == 0x0) /* srl */
-	rv32->r[RD] = rv32->r[RS1] >> rv32->r[RS2];
-      else if(FUNCT7 == 0x2) /* sra */
-	rv32->r[RD] = (int32_t)rv32->r[RS1] >> rv32->r[RS2];
-      else INVALID_INSTRUCTION();
-      break;
-    case 0x2: /* slt */
-      rv32->r[RD] = (int32_t)rv32->r[RS1] < (int32_t)rv32->r[RS2] ? 1 : 0;
-      break;
-    case 0x3: /* sltu */
-      rv32->r[RD] = rv32->r[RS1] < rv32->r[RS2] ? 1 : 0;
-      break;
-    default:
-      INVALID_INSTRUCTION();
-      break;
+    if(FUNCT7 == 0x01) { /* Multiply extension */
+      switch(FUNCT3) {
+      case 0x0: /* mul */
+	rv32->r[RD] = (int32_t)rv32->r[RS1] * (int32_t)rv32->r[RS2];
+	trace("mul %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
+	break;
+      default:
+	INVALID_INSTRUCTION();
+	break;
+      }
+    }
+    else {
+      switch(FUNCT3) {
+      case 0x0:
+	if(FUNCT7 == 0x00) /* add */
+	  rv32->r[RD] = rv32->r[RS1] + rv32->r[RS2];
+	else if (FUNCT7 == 0x20) /* sub */
+	  rv32->r[RD] = rv32->r[RS1] - rv32->r[RS2];
+	else INVALID_INSTRUCTION();
+	break;
+      case 0x4: /* xor */
+	rv32->r[RD] = rv32->r[RS1] ^ rv32->r[RS2];
+	break;
+      case 0x6: /* or */
+	rv32->r[RD] = rv32->r[RS1] | rv32->r[RS2];
+	break;
+      case 0x7: /* and */
+	rv32->r[RD] = rv32->r[RS1] & rv32->r[RS2];
+	break;
+      case 0x1: /* sll */
+	rv32->r[RD] = rv32->r[RS1] << rv32->r[RS2];
+	break;
+      case 0x5:
+	if(FUNCT7 == 0x0) /* srl */
+	  rv32->r[RD] = rv32->r[RS1] >> rv32->r[RS2];
+	else if(FUNCT7 == 0x2) /* sra */
+	  rv32->r[RD] = (int32_t)rv32->r[RS1] >> rv32->r[RS2];
+	else INVALID_INSTRUCTION();
+	break;
+      case 0x2: /* slt */
+	rv32->r[RD] = (int32_t)rv32->r[RS1] < (int32_t)rv32->r[RS2] ? 1 : 0;
+	break;
+      case 0x3: /* sltu */
+	rv32->r[RD] = rv32->r[RS1] < rv32->r[RS2] ? 1 : 0;
+	break;
+      default:
+	INVALID_INSTRUCTION();
+	break;
+      }
     }
     rv32->pc += 4;
     break;
