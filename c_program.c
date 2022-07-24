@@ -1,6 +1,3 @@
-
-asm("j _start");
-
 void print_int(int x)
 {
   asm("li a7, 1");
@@ -20,7 +17,7 @@ int fib(int n)
   return fib(n-1) + fib(n-2);
 }
 
-void _start()
+int main()
 {
   int x = 0, y;
   x++;
@@ -33,5 +30,5 @@ void _start()
   x = 15;
   y = 5;
   print_int(x/y);
-  quit(0);
+  return 45;
 }

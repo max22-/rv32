@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define trace(...) printf(__VA_ARGS__)
-/*#define trace(...)*/
+/*#define trace(...) printf(__VA_ARGS__)*/
+#define trace(...)
 
 void error(const char *msg)
 {
@@ -411,9 +411,6 @@ int main(int argc, char *argv[])
   }
   fclose(f);
 
-  #warning do that better ! ^^
-  rv32->r[2] = memsize - 1; /* we initialize sp */
-  
   while(!rv32->halted)
     rv32_cycle(rv32);
 
