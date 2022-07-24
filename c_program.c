@@ -6,9 +6,15 @@ void print_int(int x)
 
 int fib(int n)
 {
-  if(n == 0) return 0;
-  if(n == 1) return 1;
-  return fib(n-1) + fib(n-2);
+  int i, a = 0, b = 1, c;
+  if(n == 0) return a;
+  if(n == 1) return b;
+  for(i = 2; i <= n; i++) {
+    c = a + b;
+    a = b;
+    b = c;
+  }
+  return c;
 }
 
 int main()
@@ -17,7 +23,7 @@ int main()
   x++;
   y = x * 2 + 1;
   print_int(y);
-  print_int(fib(30));
+  print_int(fib(45));
   x = 45;
   y = 53;
   print_int(x*y);
