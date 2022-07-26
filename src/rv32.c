@@ -1,3 +1,6 @@
+#include "rv32.h"
+#include "ecall.h"
+
 #ifdef USE_C_STDLIB
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,18 +9,8 @@
 /*#define trace(...) printf(__VA_ARGS__)*/
 #define trace(...)
 
-void error(const char *msg)
-{
-  fprintf(stderr,"%s\n",  msg);
-  exit(1);
-}
-
 #endif
 
-#include "rv32.h"
-#include "ecall.h"
-
-#define INVALID_INSTRUCTION() error("Invalid instruction")
 
 #define SEXT(x, n) ((x) & (1 << (n - 1)) ? (x) | (0xFFFFFFFF << n) : (x))
 
@@ -79,11 +72,11 @@ void rv32_dump_registers(RV32 *rv32)
   printf("pc = 0x%08x\n", rv32->pc);
 }
 
-void rv32_cycle(RV32 *rv32)
+rv32_result_t rv32_cycle(RV32 *rv32)
 {
   uint32_t instr, addr;
 
-  if(rv32->pc >= rv32->mem_size) error("Invalid memory access");
+  if(rv32->pc >= rv32->mem_size) return RV32_INVALID_MEMORY_ACCESS;
   instr = *(uint32_t*)&rv32->mem[rv32->pc];
 
   trace("pc=%08x\t", rv32->pc);
@@ -112,27 +105,27 @@ void rv32_cycle(RV32 *rv32)
 	trace("mulhu %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
 	break;
       case 0x4: /* div */
-	if(rv32->r[RS2] == 0) { error("Division by zero"); break; }
+	if(rv32->r[RS2] == 0) return RV32_DIV_BY_ZERO;
 	rv32->r[RD] = (int32_t)rv32->r[RS1] / (int32_t)rv32->r[RS2];
 	trace("div %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
 	break;
       case 0x5: /* divu */
-	if(rv32->r[RS2] == 0) { error("Division by zero"); break; }
+	if(rv32->r[RS2] == 0) return RV32_DIV_BY_ZERO;
 	rv32->r[RD] = rv32->r[RS1] / rv32->r[RS2];
 	trace("divu %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
 	break;
       case 0x6: /* rem */
-	if(rv32->r[RS2] == 0) { error("Division by zero"); break; }
+	if(rv32->r[RS2] == 0) return RV32_DIV_BY_ZERO;
 	rv32->r[RD] = (int32_t)rv32->r[RS1] % (int32_t)rv32->r[RS2];
 	trace("rem %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
 	break;
       case 0x7: /* remu */
-	if(rv32->r[RS2] == 0) { error("Division by zero"); break; }
+	if(rv32->r[RS2] == 0) return RV32_DIV_BY_ZERO;
 	rv32->r[RD] = rv32->r[RS1] % rv32->r[RS2];
 	trace("remu %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
 	break;
       default:
-	INVALID_INSTRUCTION();
+	return RV32_INVALID_INSTRUCTION;
 	break;
       }
     }
@@ -143,7 +136,7 @@ void rv32_cycle(RV32 *rv32)
 	  rv32->r[RD] = rv32->r[RS1] + rv32->r[RS2];
 	else if (FUNCT7 == 0x20) /* sub */
 	  rv32->r[RD] = rv32->r[RS1] - rv32->r[RS2];
-	else INVALID_INSTRUCTION();
+	else return RV32_INVALID_INSTRUCTION;
 	break;
       case 0x4: /* xor */
 	rv32->r[RD] = rv32->r[RS1] ^ rv32->r[RS2];
@@ -162,7 +155,7 @@ void rv32_cycle(RV32 *rv32)
 	  rv32->r[RD] = rv32->r[RS1] >> rv32->r[RS2];
 	else if(FUNCT7 == 0x2) /* sra */
 	  rv32->r[RD] = (int32_t)rv32->r[RS1] >> rv32->r[RS2];
-	else INVALID_INSTRUCTION();
+	else return RV32_INVALID_INSTRUCTION;
 	break;
       case 0x2: /* slt */
 	rv32->r[RD] = (int32_t)rv32->r[RS1] < (int32_t)rv32->r[RS2] ? 1 : 0;
@@ -171,8 +164,7 @@ void rv32_cycle(RV32 *rv32)
 	rv32->r[RD] = rv32->r[RS1] < rv32->r[RS2] ? 1 : 0;
 	break;
       default:
-	INVALID_INSTRUCTION();
-	break;
+	return RV32_INVALID_INSTRUCTION;
       }
     }
     rv32->pc += 4;
@@ -208,7 +200,7 @@ void rv32_cycle(RV32 *rv32)
 	rv32->r[RD] = (int32_t)rv32->r[RS1] >> (IMM_I & 0x1f);
 	trace("srai %s, %s, %u\n", rname[RD], rname[RS1], IMM_I & 0x1f);
       }
-      else INVALID_INSTRUCTION();
+      else return RV32_INVALID_INSTRUCTION;
       break;
     case 0x2: /* slti */
       rv32->r[RD] = (int32_t)rv32->r[RS1] < SEXT_IMM_I ? 1 : 0;
@@ -219,8 +211,7 @@ void rv32_cycle(RV32 *rv32)
       trace("sltiu %s, %s, %u\n", rname[RD], rname[RS1], IMM_I);
       break;
     default:
-      INVALID_INSTRUCTION();
-      break;
+      return RV32_INVALID_INSTRUCTION;
     }
     rv32->pc += 4;
     break;
@@ -229,32 +220,32 @@ void rv32_cycle(RV32 *rv32)
     addr = rv32->r[RS1] + SEXT_IMM_I;
     switch(FUNCT3) {
     case 0x0: /* lb */
-      if(addr >= rv32->mem_size) error("Invalid memory access");
+      if(addr >= rv32->mem_size) return RV32_INVALID_MEMORY_ACCESS;
       rv32->r[RD] = SEXT(rv32->mem[addr], 8);
       trace("lb %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     case 0x1: /* lh */
-      if(addr >= rv32->mem_size - 1) error("Invalid memory access");
+      if(addr >= rv32->mem_size - 1) return RV32_INVALID_MEMORY_ACCESS;
       rv32->r[RD] = SEXT(rv32->mem[addr] | rv32->mem[addr+1] << 8, 16);
       trace("lh %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     case 0x2: /* lw */
-      if(addr >= rv32->mem_size - 3) error("Invalid memory access");
+      if(addr >= rv32->mem_size - 3) return RV32_INVALID_MEMORY_ACCESS;
       rv32->r[RD] = rv32->mem[addr] | rv32->mem[addr+1] << 8 | rv32->mem[addr+2] << 16 | rv32->mem[addr+3] << 24;
       trace("lw %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     case 0x4: /* lbu */
-      if(addr >= rv32->mem_size) error("Invalid memory access");
+      if(addr >= rv32->mem_size) return RV32_INVALID_MEMORY_ACCESS;
       rv32->r[RD] = rv32->mem[addr];
       trace("lbu %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     case 0x5: /* lhu */
-      if(addr >= rv32->mem_size - 1) error("Invalid memory access");
+      if(addr >= rv32->mem_size - 1) return RV32_INVALID_MEMORY_ACCESS;
       rv32->r[RD] = rv32->mem[addr] | rv32->mem[addr+1] << 8;
       trace("lhu %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     default:
-      INVALID_INSTRUCTION();
+      return RV32_INVALID_INSTRUCTION;
       break;
     }
     rv32->pc += 4;
@@ -264,18 +255,18 @@ void rv32_cycle(RV32 *rv32)
     addr = rv32->r[RS1] + SEXT_IMM_S;
     switch(FUNCT3) {
     case 0x0: /* sb */
-      if(addr >= rv32->mem_size) error("Invalid memory access");
+      if(addr >= rv32->mem_size) return RV32_INVALID_MEMORY_ACCESS;
       rv32->mem[addr] = rv32->r[RS2] & 0xff;
       trace("sb %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_S);
       break;
     case 0x1: /* sh */
-      if(addr >= rv32->mem_size) error("Invalid memory access");
+      if(addr >= rv32->mem_size) return RV32_INVALID_MEMORY_ACCESS;
       rv32->mem[addr++] = rv32->r[RS2] & 0xff;
       rv32->mem[addr++] = (rv32->r[RS2] >> 8) & 0xff;
       trace("sh %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_S);
       break;
     case 0x2: /* sw */
-      if(addr >= rv32->mem_size - 3) error("Invalid memory access");
+      if(addr >= rv32->mem_size - 3) return RV32_INVALID_MEMORY_ACCESS;
       rv32->mem[addr++] = rv32->r[RS2] & 0xff;
       rv32->mem[addr++] = (rv32->r[RS2] >> 8) & 0xff;
       rv32->mem[addr++] = (rv32->r[RS2] >> 16) & 0xff;
@@ -283,7 +274,7 @@ void rv32_cycle(RV32 *rv32)
       trace("sw %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_S);
       break;
     default:
-      INVALID_INSTRUCTION();
+      return RV32_INVALID_INSTRUCTION;
     }
     rv32->pc += 4;
     break;
@@ -333,8 +324,7 @@ void rv32_cycle(RV32 *rv32)
       trace("bgeu %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_B);
       break;
     default:
-      error("Invalid instruction");
-      break;
+      return RV32_INVALID_INSTRUCTION;
     }
     break;
     
@@ -373,55 +363,14 @@ void rv32_cycle(RV32 *rv32)
       trace("ebreak\n");
       break;
     default:
-      error("Invalid instruction");
-      break;
+      return RV32_INVALID_INSTRUCTION;
     }
     rv32->pc += 4;
     break;
   default:
-    error("Invalid opcode");
-    break;
+    return RV32_INVALID_OPCODE;
   }
+  return RV32_OK;
 }
 
-int main(int argc, char *argv[])
-{
-  FILE *f;
-  RV32 *rv32;
-  size_t fsize;
-  const size_t memsize = 65536;
-  int i;
-  
-  if(argc < 2)
-    error("Please provide a program to run.");
-  f = fopen(argv[1], "r");
-  if(!f)
-    error("Failed to open program.");
-  rv32 = rv32_new(memsize);
-  if(!rv32)
-    error("Not enough memory");
-  fseek(f, 0, SEEK_END);
-  fsize = ftell(f);
-  if(fsize > memsize)
-    error("Program too big.");
-  fseek(f, 0, SEEK_SET);
-  if(fread(rv32->mem, fsize, 1, f) != 1) {
-    fclose(f);
-    error("Failed to read program");
-  }
-  fclose(f);
 
-  while(!rv32->halted)
-    rv32_cycle(rv32);
-
-  for(i = 0; i < 0x104; i++) {
-    if(i%16 == 0)
-      printf("%08x\t", i);
-    printf("%02x ", rv32->mem[i]);
-    if((i+1) % 16 == 0)
-      printf("\n");
-  }
-  printf("\n");
-  rv32_free(rv32);
-  return 0;
-}
