@@ -1,9 +1,5 @@
-rv32
 *~
-program.bin
 *#*
 .#*
-*.o
-program.elf
-c_program.bin
-c_program.elf
+bin
+build

@@ -1,33 +1,42 @@
-all: rv32 program.bin c_program.bin
+CFLAGS = -Wall -std=c89 -DUSE_C_STDLIB
 
-rv32: rv32.c rv32.h ecall.c ecall.h
-	gcc rv32.c ecall.c -o rv32 -Wall -std=c89 -DUSE_C_STDLIB
+all: bin/rv32 bin/asm_program.bin bin/c_program.bin
 
-program.bin: program.elf
-	riscv64-unknown-elf-objcopy program.elf -O binary program.bin
+bin/rv32: src/rv32.c src/rv32.h src/ecall.c src/ecall.h
+	mkdir -p bin
+	gcc src/rv32.c src/ecall.c -o bin/rv32 $(CFLAGS)
 
-program.elf: program.o
-	riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 program.o -o program.elf -nostdlib -static
+bin/asm_program.bin: bin/asm_program.elf
+	mkdir -p bin
+	riscv64-unknown-elf-objcopy bin/asm_program.elf -O binary bin/asm_program.bin
 
-program.o: program.s
-	riscv64-unknown-elf-as -march=rv32im -mabi=ilp32 program.s -o program.o
+bin/asm_program.elf: build/asm_program.o
+	mkdir -p bin
+	riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 build/asm_program.o -o bin/asm_program.elf -nostdlib -static
 
-c_program.bin: c_program.elf
-	riscv64-unknown-elf-objcopy c_program.elf -O binary c_program.bin
+build/asm_program.o: examples/asm/asm_program.s
+	mkdir -p build
+	riscv64-unknown-elf-as -march=rv32im -mabi=ilp32 examples/asm/asm_program.s -o build/asm_program.o
 
-c_program.elf: c_program.c crt0.o
-	riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -nostartfiles -nostdlib -Wl,-T,linker_script.ld c_program.c -o c_program.elf
+bin/c_program.bin: bin/c_program.elf
+	mkdir -p bin
+	riscv64-unknown-elf-objcopy bin/c_program.elf -O binary bin/c_program.bin
 
-crt0.o: crt0.s
-	riscv64-unknown-elf-as -march=rv32im -mabi=ilp32 crt0.s -o crt0.o
+bin/c_program.elf: examples/c/c_program.c build/crt0.o
+	mkdir -p bin
+	riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -nostartfiles -nostdlib -Wl,-T,examples/c/linker_script.ld examples/c/c_program.c -o bin/c_program.elf
+
+build/crt0.o: examples/c/crt0.s
+	mkdir -p build
+	riscv64-unknown-elf-as -march=rv32im -mabi=ilp32 examples/c/crt0.s -o build/crt0.o
 
 .PHONY: run disassemble clean
 
-run: rv32 program.bin
-	./rv32 program.bin
+run_c: bin/rv32 bin/c_program.bin
+	bin/rv32 bin/c_program.bin
 
-disassemble: program.elf
-	riscv64-unknown-elf-objdump -d program.elf
+run_asm: bin/rv32 bin/asm_program.bin
+	bin/rv32 bin/asm_program.bin
 
 clean:
-	rm -f *.o rv32 program.bin program.elf c_program.elf c_program.bin
+	rm -rf bin build
