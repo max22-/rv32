@@ -18,6 +18,18 @@ build/asm_program.o: examples/asm/asm_program.s
 	mkdir -p build
 	riscv64-unknown-elf-as -march=rv32im -mabi=ilp32 examples/asm/asm_program.s -o build/asm_program.o
 
+bin/hello.bin: bin/hello.elf
+	mkdir -p bin
+	riscv64-unknown-elf-objcopy bin/hello.elf -O binary bin/hello.bin
+
+bin/hello.elf: build/hello.o
+	mkdir -p bin
+	riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 build/hello.o -o bin/hello.elf -nostdlib -static
+
+build/hello.o: examples/asm/hello_world/hello.s
+	mkdir -p build
+	riscv64-unknown-elf-as -march=rv32im -mabi=ilp32 examples/asm/hello_world/hello.s -o build/hello.o
+
 bin/c_program.bin: bin/c_program.elf
 	mkdir -p bin
 	riscv64-unknown-elf-objcopy bin/c_program.elf -O binary bin/c_program.bin
@@ -37,6 +49,9 @@ run_c: bin/rv32 bin/c_program.bin
 
 run_asm: bin/rv32 bin/asm_program.bin
 	bin/rv32 bin/asm_program.bin
+
+run_hello: bin/rv32 bin/hello.bin
+	bin/rv32 bin/hello.bin
 
 clean:
 	rm -rf bin build
