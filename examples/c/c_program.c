@@ -1,6 +1,6 @@
 void print_int(int x)
 {
-  asm("li a7, 1");
+  asm("li a7, 2");
   asm("ecall");
 }
 
