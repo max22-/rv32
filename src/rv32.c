@@ -196,7 +196,7 @@ rv32_result_t rv32_cycle(RV32 *rv32)
       if(FUNCT7 == 0x00) { /* srli */
 	rv32->r[RD] = rv32->r[RS1] >> (IMM_I & 0x1f);
 	trace("srli %s, %s, %u\n", rname[RD], rname[RS1], IMM_I & 0x1f);
-      } else if(FUNCT7 == 0x02) { /* srai */
+      } else if(FUNCT7 == 0x20) { /* srai */
 	rv32->r[RD] = (int32_t)rv32->r[RS1] >> (IMM_I & 0x1f);
 	trace("srai %s, %s, %u\n", rname[RD], rname[RS1], IMM_I & 0x1f);
       }
