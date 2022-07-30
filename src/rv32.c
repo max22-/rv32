@@ -153,7 +153,7 @@ rv32_result_t rv32_cycle(RV32 *rv32)
       case 0x5:
 	if(FUNCT7 == 0x0) /* srl */
 	  rv32->r[RD] = rv32->r[RS1] >> rv32->r[RS2];
-	else if(FUNCT7 == 0x2) /* sra */
+	else if(FUNCT7 == 0x20) /* sra */
 	  rv32->r[RD] = (int32_t)rv32->r[RS1] >> rv32->r[RS2];
 	else return RV32_INVALID_INSTRUCTION;
 	break;
