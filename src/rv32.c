@@ -93,7 +93,7 @@ rv32_result_t rv32_cycle(RV32 *rv32)
 	trace("mul %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
 	break;
       case 0x1: /* mulh */
-	rv32->r[RD] = ((int64_t)rv32->r[RS1] * (int64_t)rv32->r[RS2]) >> 32;
+	rv32->r[RD] = ((int64_t)(int32_t)rv32->r[RS1] * (int64_t)(int32_t)rv32->r[RS2]) >> 32;
 	trace("mulh %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
 	break;
       case 0x2: /* mulhsu */
