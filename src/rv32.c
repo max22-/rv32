@@ -104,26 +104,36 @@ rv32_result_t rv32_cycle(RV32 *rv32)
 	rv32->r[RD] = ((uint64_t)rv32->r[RS1] * (uint64_t)rv32->r[RS2]) >> 32;
 	trace("mulhu %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
 	break;
-      case 0x4: /* div */
-	if(rv32->r[RS2] == 0) return RV32_DIV_BY_ZERO;
-	rv32->r[RD] = (int32_t)rv32->r[RS1] / (int32_t)rv32->r[RS2];
+      case 0x4: /* div */ {
+	int32_t dividend = rv32->r[RS1], divisor = rv32->r[RS2];
+	if(divisor == 0) rv32->r[RD] = 0xFFFFFFFF;
+	else if(dividend == 0x80000000 && divisor == -1) rv32->r[RD] = dividend; /* overflow */
+	else rv32->r[RD] = dividend / divisor;
 	trace("div %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
 	break;
-      case 0x5: /* divu */
-	if(rv32->r[RS2] == 0) return RV32_DIV_BY_ZERO;
-	rv32->r[RD] = rv32->r[RS1] / rv32->r[RS2];
+      }
+      case 0x5: /* divu */ {
+	uint32_t dividend = rv32->r[RS1], divisor = rv32->r[RS2];
+	if(divisor == 0) rv32->r[RD] = 0xFFFFFFFF;
+	else rv32->r[RD] = dividend / divisor;
 	trace("divu %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
 	break;
-      case 0x6: /* rem */
-	if(rv32->r[RS2] == 0) return RV32_DIV_BY_ZERO;
-	rv32->r[RD] = (int32_t)rv32->r[RS1] % (int32_t)rv32->r[RS2];
+      }
+      case 0x6: /* rem */ {
+	int32_t dividend = rv32->r[RS1], divisor = rv32->r[RS2];
+	if(divisor == 0) rv32->r[RD] = dividend;
+	else if(dividend == 0x80000000 && divisor == -1) rv32->r[RD] = 0; /* overflow) */
+	else rv32->r[RD] = dividend % divisor;
 	trace("rem %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
 	break;
-      case 0x7: /* remu */
-	if(rv32->r[RS2] == 0) return RV32_DIV_BY_ZERO;
-	rv32->r[RD] = rv32->r[RS1] % rv32->r[RS2];
+      }
+      case 0x7: /* remu */ {
+        uint32_t dividend = rv32->r[RS1], divisor = rv32->r[RS2];
+	if(divisor == 0) rv32->r[RD] = dividend;
+	else rv32->r[RD] = dividend % divisor;
 	trace("remu %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
 	break;
+      }
       default:
 	return RV32_INVALID_INSTRUCTION;
 	break;
