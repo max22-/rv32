@@ -38,11 +38,14 @@ int main(int argc, char *argv[])
 
   while(!rv32->halted) {
     if((res = rv32_cycle(rv32)) != RV32_OK) {
-      fprintf(stderr, "Error %d\n", res);
+      fprintf(stderr, "Error %d at pc=%08x\n", res, rv32->pc);
+      fprintf(stderr, "instr = %08x\n", *(uint32_t*)&rv32->mem[rv32->pc]);
       break;
     }
   }
 
+
+  /*
   for(i = 0; i < 0x104; i++) {
     if(i%16 == 0)
       printf("%08x\t", i);
@@ -50,6 +53,8 @@ int main(int argc, char *argv[])
     if((i+1) % 16 == 0)
       printf("\n");
   }
+  */
+  
   printf("\n");
   rv32_free(rv32);
   return 0;
