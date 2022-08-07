@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "rv32.h"
 
 int main(int argc, char *argv[])
@@ -7,7 +8,6 @@ int main(int argc, char *argv[])
   RV32 *rv32;
   size_t fsize;
   const size_t memsize = 65536;
-  int i;
   rv32_result_t res;
   
   if(argc < 2) {
@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
     fprintf(stderr, "Failed to open program %s\n", argv[1]);
     return 1;
   }
-  rv32 = rv32_new(memsize);
+  rv32 = rv32_new(memsize, calloc);
   if(!rv32) {
     fprintf(stderr, "Not enough memory\n");
     return 1;
@@ -56,6 +56,6 @@ int main(int argc, char *argv[])
   */
   
   printf("\n");
-  rv32_free(rv32);
+  free(rv32);
   return 0;
 }

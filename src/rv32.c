@@ -1,14 +1,13 @@
 #include "rv32.h"
 #include "ecall.h"
 
-#ifdef USE_C_STDLIB
+#ifdef TRACE
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-
-/*#define trace(...) printf(__VA_ARGS__)*/
+#define trace(...) printf(__VA_ARGS__)
+#else
 #define trace(...)
-
 #endif
 
 
@@ -48,28 +47,11 @@ const char *rname[] = {
   "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6"
 };
 
-RV32 *rv32_new(uint32_t mem_size)
+RV32 *rv32_new(uint32_t mem_size, void* (*calloc_func)(size_t, size_t))
 {
-  RV32 *rv32 = (RV32*)calloc(1, sizeof(RV32) + mem_size);
+  RV32 *rv32 = (RV32*)calloc_func(1, sizeof(RV32) + mem_size);
   rv32->mem_size = mem_size;
   return rv32;
-}
-
-void rv32_free(RV32 *rv32)
-{
-  if(rv32 != NULL)
-    free(rv32);
-}
-
-void rv32_dump_registers(RV32 *rv32)
-{
-  int i;
-  for(i = 0; i < 32; i++) {
-    printf("%s=0x%08x\t", rname[i], rv32->r[i]);
-    if((i+1) % 8 == 0)
-      printf("\n");
-  }
-  printf("pc = 0x%08x\n", rv32->pc);
 }
 
 rv32_result_t rv32_cycle(RV32 *rv32)

@@ -1,10 +1,10 @@
-CFLAGS = -Wall -std=c89 -DUSE_C_STDLIB
+CFLAGS = -Wall -std=c89
 
 all: bin/rv32 bin/asm_program.bin bin/c_program.bin
 
-bin/rv32: examples/embedding/emulator.c src/rv32.c src/rv32.h src/ecall.c src/ecall.h
+bin/rv32: examples/embedding/emulator.c examples/embedding/ecall.c src/rv32.c src/rv32.h src/ecall.h
 	mkdir -p bin
-	gcc -Isrc examples/embedding/emulator.c src/rv32.c src/ecall.c -o bin/rv32 $(CFLAGS)
+	gcc -Isrc examples/embedding/emulator.c examples/embedding/ecall.c src/rv32.c -o bin/rv32 $(CFLAGS)
 
 bin/asm_program.bin: bin/asm_program.elf
 	mkdir -p bin

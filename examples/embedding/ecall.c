@@ -1,7 +1,4 @@
-#ifdef USE_C_STDLIB
 #include <stdio.h>
-#endif
-
 #include "rv32.h"
 #include "ecall.h"
 
