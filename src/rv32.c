@@ -30,6 +30,17 @@
    (instr & 0xff000) | ((instr & 0x80000000) >> 11))
 #define SEXT_IMM_J ((int32_t)SEXT(IMM_J, 20))
 
+
+/* bus (draft) */
+#warning endianness
+#define LOAD8(addr) (*(uint8_t *)(rv32->mem + addr))
+#define LOAD16(addr) (*(uint16_t *)(rv32->mem + addr))
+#define LOAD32(addr) (*(uint32_t *)(rv32->mem + addr))
+#define STORE8(addr, val) *(uint8_t*)(rv32->mem + addr) = val
+#define STORE16(addr, val) *(uint16_t*)(rv32->mem + addr) = val
+#define STORE32(addr, val) *(uint32_t*)(rv32->mem + addr) = val
+/* ************ */
+
 const char *rname[] = {"zero", "ra", "sp",  "gp",  "tp", "t0", "t1", "t2",
                        "s0",   "s1", "a0",  "a1",  "a2", "a3", "a4", "a5",
                        "a6",   "a7", "s2",  "s3",  "s4", "s5", "s6", "s7",
@@ -47,7 +58,7 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
 
   if (rv32->pc >= rv32->mem_size)
     return RV32_INVALID_MEMORY_ACCESS;
-  instr = *(uint32_t *)&rv32->mem[rv32->pc];
+  instr = LOAD32(rv32->pc);
   opcode = instr & 0x7f;
   funct3 = (instr >> 12) & 0x7;
   funct7 = (instr >> 25) & 0x7f;
@@ -220,32 +231,31 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     case 0x0: /* lb */
       if (addr >= rv32->mem_size)
         return RV32_INVALID_MEMORY_ACCESS;
-      rv32->r[RD] = SEXT(rv32->mem[addr], 8);
+      rv32->r[RD] = SEXT(LOAD8(addr), 8);
       trace("lb %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     case 0x1: /* lh */
       if (addr >= rv32->mem_size - 1)
         return RV32_INVALID_MEMORY_ACCESS;
-      rv32->r[RD] = SEXT(rv32->mem[addr] | rv32->mem[addr + 1] << 8, 16);
+      rv32->r[RD] = SEXT(LOAD16(addr), 16);
       trace("lh %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     case 0x2: /* lw */
       if (addr >= rv32->mem_size - 3)
         return RV32_INVALID_MEMORY_ACCESS;
-      rv32->r[RD] = rv32->mem[addr] | rv32->mem[addr + 1] << 8 |
-                    rv32->mem[addr + 2] << 16 | rv32->mem[addr + 3] << 24;
+      rv32->r[RD] = LOAD32(addr);
       trace("lw %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     case 0x4: /* lbu */
       if (addr >= rv32->mem_size)
         return RV32_INVALID_MEMORY_ACCESS;
-      rv32->r[RD] = rv32->mem[addr];
+      rv32->r[RD] = LOAD8(addr);
       trace("lbu %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     case 0x5: /* lhu */
       if (addr >= rv32->mem_size - 1)
         return RV32_INVALID_MEMORY_ACCESS;
-      rv32->r[RD] = rv32->mem[addr] | rv32->mem[addr + 1] << 8;
+      rv32->r[RD] = LOAD16(addr);
       trace("lhu %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     default:
@@ -261,23 +271,19 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     case 0x0: /* sb */
       if (addr >= rv32->mem_size)
         return RV32_INVALID_MEMORY_ACCESS;
-      rv32->mem[addr] = rv32->r[RS2] & 0xff;
+      STORE8(addr, rv32->r[RS2] & 0xff);
       trace("sb %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_S);
       break;
     case 0x1: /* sh */
       if (addr >= rv32->mem_size)
         return RV32_INVALID_MEMORY_ACCESS;
-      rv32->mem[addr++] = rv32->r[RS2] & 0xff;
-      rv32->mem[addr++] = (rv32->r[RS2] >> 8) & 0xff;
+      STORE16(addr, rv32->r[RS2] & 0xFFFF);
       trace("sh %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_S);
       break;
     case 0x2: /* sw */
       if (addr >= rv32->mem_size - 3)
         return RV32_INVALID_MEMORY_ACCESS;
-      rv32->mem[addr++] = rv32->r[RS2] & 0xff;
-      rv32->mem[addr++] = (rv32->r[RS2] >> 8) & 0xff;
-      rv32->mem[addr++] = (rv32->r[RS2] >> 16) & 0xff;
-      rv32->mem[addr++] = rv32->r[RS2] >> 24;
+      STORE32(addr, rv32->r[RS2]);
       trace("sw %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_S);
       break;
     default:
