@@ -13,8 +13,6 @@
 #define SEXT(x, n) ((x) & (1 << (n - 1)) ? (x) | (0xFFFFFFFF << n) : (x))
 
 #define RD ((instr >> 7) & 0x1f)
-#define FUNCT3 ((instr >> 12) & 0x7)
-#define FUNCT7 ((instr >> 25) & 0x7f)
 #define RS1 ((instr >> 15) & 0x1f)
 #define RS2 ((instr >> 20) & 0x1f)
 #define IMM_I ((instr >> 20) & 0xfff)
@@ -45,12 +43,14 @@ RV32 *rv32_new(uint32_t mem_size, void *(*calloc_func)(size_t, size_t)) {
 
 rv32_result_t rv32_cycle(RV32 *rv32) {
   uint32_t instr, addr;
-  uint8_t opcode;
+  uint8_t opcode, funct3, funct7;
 
   if (rv32->pc >= rv32->mem_size)
     return RV32_INVALID_MEMORY_ACCESS;
   instr = *(uint32_t *)&rv32->mem[rv32->pc];
   opcode = instr & 0x7f;
+  funct3 = (instr >> 12) & 0x7;
+  funct7 = (instr >> 25) & 0x7f;
 
   trace("pc=%08x\t", rv32->pc);
   trace("opcode=%02x\t", opcode);
@@ -59,8 +59,8 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
   switch (opcode) {
 
   case 0x33:
-    if (FUNCT7 == 0x01) { /* Multiply extension */
-      switch (FUNCT3) {
+    if (funct7 == 0x01) { /* Multiply extension */
+      switch (funct3) {
       case 0x0: /* mul */
         rv32->r[RD] =
             (((int64_t)rv32->r[RS1] * (int64_t)rv32->r[RS2]) & 0xFFFFFFFF);
@@ -126,11 +126,11 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
         break;
       }
     } else {
-      switch (FUNCT3) {
+      switch (funct3) {
       case 0x0:
-        if (FUNCT7 == 0x00) /* add */
+        if (funct7 == 0x00) /* add */
           rv32->r[RD] = rv32->r[RS1] + rv32->r[RS2];
-        else if (FUNCT7 == 0x20) /* sub */
+        else if (funct7 == 0x20) /* sub */
           rv32->r[RD] = rv32->r[RS1] - rv32->r[RS2];
         else
           return RV32_INVALID_INSTRUCTION;
@@ -148,9 +148,9 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
         rv32->r[RD] = rv32->r[RS1] << rv32->r[RS2];
         break;
       case 0x5:
-        if (FUNCT7 == 0x0) /* srl */
+        if (funct7 == 0x0) /* srl */
           rv32->r[RD] = rv32->r[RS1] >> rv32->r[RS2];
-        else if (FUNCT7 == 0x20) /* sra */
+        else if (funct7 == 0x20) /* sra */
           rv32->r[RD] = (int32_t)rv32->r[RS1] >> rv32->r[RS2];
         else
           return RV32_INVALID_INSTRUCTION;
@@ -169,7 +169,7 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     break;
 
   case 0x13:
-    switch (FUNCT3) {
+    switch (funct3) {
     case 0x00: /* addi */
       rv32->r[RD] = rv32->r[RS1] + SEXT_IMM_I;
       trace("addi %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
@@ -191,10 +191,10 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       trace("slli %s, %s, %u\n", rname[RD], rname[RS1], IMM_I & 0x1f);
       break;
     case 0x5:
-      if (FUNCT7 == 0x00) { /* srli */
+      if (funct7 == 0x00) { /* srli */
         rv32->r[RD] = rv32->r[RS1] >> (IMM_I & 0x1f);
         trace("srli %s, %s, %u\n", rname[RD], rname[RS1], IMM_I & 0x1f);
-      } else if (FUNCT7 == 0x20) { /* srai */
+      } else if (funct7 == 0x20) { /* srai */
         rv32->r[RD] = (int32_t)rv32->r[RS1] >> (IMM_I & 0x1f);
         trace("srai %s, %s, %u\n", rname[RD], rname[RS1], IMM_I & 0x1f);
       } else
@@ -216,7 +216,7 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
 
   case 0x3:
     addr = rv32->r[RS1] + SEXT_IMM_I;
-    switch (FUNCT3) {
+    switch (funct3) {
     case 0x0: /* lb */
       if (addr >= rv32->mem_size)
         return RV32_INVALID_MEMORY_ACCESS;
@@ -257,7 +257,7 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
 
   case 0x23:
     addr = rv32->r[RS1] + SEXT_IMM_S;
-    switch (FUNCT3) {
+    switch (funct3) {
     case 0x0: /* sb */
       if (addr >= rv32->mem_size)
         return RV32_INVALID_MEMORY_ACCESS;
@@ -287,7 +287,7 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     break;
 
   case 0x63:
-    switch (FUNCT3) {
+    switch (funct3) {
     case 0x0: /* beq */
       if (rv32->r[RS1] == rv32->r[RS2])
         rv32->pc += SEXT_IMM_B;
