@@ -13,7 +13,6 @@
 
 #define SEXT(x, n) ((x) & (1 << (n - 1)) ? (x) | (0xFFFFFFFF << n) : (x))
 
-#define OPCODE (instr & 0x7f)
 #define RD ((instr >> 7) & 0x1f)
 #define FUNCT3 ((instr >> 12) & 0x7)
 #define FUNCT7 ((instr >> 25) & 0x7f)
@@ -57,15 +56,17 @@ RV32 *rv32_new(uint32_t mem_size, void* (*calloc_func)(size_t, size_t))
 rv32_result_t rv32_cycle(RV32 *rv32)
 {
   uint32_t instr, addr;
+  uint8_t opcode;
 
   if(rv32->pc >= rv32->mem_size) return RV32_INVALID_MEMORY_ACCESS;
   instr = *(uint32_t*)&rv32->mem[rv32->pc];
+  opcode = instr & 0x7f;
 
   trace("pc=%08x\t", rv32->pc);
-  trace("opcode=%02x\t", OPCODE);
+  trace("opcode=%02x\t", opcode);
   
   rv32->r[0] = 0;
-  switch(OPCODE) {
+  switch(opcode) {
     
   case 0x33:
     if(FUNCT7 == 0x01) { /* Multiply extension */
