@@ -42,7 +42,13 @@ build/crt0.o: examples/c/crt0.s
 	mkdir -p build
 	riscv64-unknown-elf-as -march=rv32im -mabi=ilp32 examples/c/crt0.s -o build/crt0.o
 
-.PHONY: run disassemble clean
+tests/tests.bin:
+	make -C tests
+
+.PHONY: run test disassemble clean
+
+test: bin/rv32 tests/tests.bin
+	./bin/rv32 tests/tests.bin
 
 run_c: bin/rv32 bin/c_program.bin
 	bin/rv32 bin/c_program.bin
@@ -55,3 +61,4 @@ run_hello: bin/rv32 bin/hello.bin
 
 clean:
 	rm -rf bin build
+	make -C tests clean
