@@ -75,7 +75,7 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
   trace("pc=%08x\t", rv32->pc);
   trace("opcode=%02x\t", opcode);
 
-  rv32->r[0] = 0;
+  rv32->r[REG_ZERO] = 0;
   switch (opcode) {
 
   case 0x33:
