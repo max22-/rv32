@@ -7,7 +7,8 @@ int main(int argc, char *argv[])
   FILE *f;
   RV32 *rv32;
   size_t fsize;
-  const size_t memsize = 65536;
+  const size_t memsize = 0x20000004; /* The tests write a byte at 0x20000000
+					so the memory needs to be this big ! */
   rv32_result_t res;
   
   if(argc < 2) {
