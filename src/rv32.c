@@ -32,21 +32,24 @@
 
 
 /* bus (draft) */
-#define LOAD8(addr) (*(uint8_t *)(rv32->mem + addr))
-#define LOAD16(addr) (LOAD8(addr) | LOAD8(addr+1) << 8)
-#define LOAD32(addr) (LOAD8(addr) | LOAD8(addr+1) << 8 | LOAD8(addr+2) << 16 | LOAD8(addr+3) << 24)
-#define STORE8(addr, val) *(uint8_t*)(rv32->mem + addr) = val
+#define LOAD8(addr) (*(uint8_t *)(rv32->mem + (addr)))
+#define LOAD16(addr) (LOAD8(addr) | LOAD8((addr)+1) << 8)
+#define LOAD32(addr) (LOAD8(addr) | LOAD8((addr)+1) << 8 | LOAD8((addr)+2) << 16 | LOAD8((addr)+3) << 24)
+#define STORE8(addr, val)			\
+  do {						\
+    *(uint8_t*)(rv32->mem + (addr)) = val;	\
+  } while(0)
 #define STORE16(addr, val)            \
   do {                                \
-    STORE8(addr, val & 0xff);         \
-    STORE8(addr+1, (val>>8) & 0xff);  \
+    STORE8(addr, (val) & 0xff);				\
+    STORE8(addr+1, ((val)>>8) & 0xff);			\
   } while(0)
 #define STORE32(addr, val)            \
   do {                                \
-    STORE8(addr, val & 0xff);         \
-    STORE8(addr+1, (val>>8) & 0xff);  \
-    STORE8(addr+2, (val>>16) & 0xff); \
-    STORE8(addr+3, (val>>24) & 0xff); \
+    STORE8(addr, (val) & 0xff);	      \
+    STORE8(addr+1, ((val)>>8) & 0xff);		\
+    STORE8(addr+2, ((val)>>16) & 0xff);		\
+    STORE8(addr+3, ((val)>>24) & 0xff);		\
   } while(0)
 /* ************ */
 
