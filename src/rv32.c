@@ -384,9 +384,8 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       trace("ecall %d\n", rv32->r[17]);
       break;
     case 0x1: /* ebreak */
-#warning ebreak not implemented
       trace("ebreak\n");
-      break;
+      return RV32_EBREAK;
     default:
       return RV32_INVALID_INSTRUCTION;
     }

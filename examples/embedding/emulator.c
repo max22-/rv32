@@ -38,8 +38,12 @@ int main(int argc, char *argv[])
 
   while(!rv32->halted) {
     if((res = rv32_cycle(rv32)) != RV32_OK) {
-      fprintf(stderr, "Error %d at pc=%08x\n", res, rv32->pc);
-      fprintf(stderr, "instr = %08x\n", *(uint32_t*)&rv32->mem[rv32->pc]);
+      if(res == RV32_EBREAK)
+	fprintf(stderr, "ebreak at pc=%08x\n", rv32->pc);
+      else {
+	fprintf(stderr, "Error %d at pc=%08x\n", res, rv32->pc);
+	fprintf(stderr, "instr = %08x\n", *(uint32_t*)&rv32->mem[rv32->pc]);
+      }
       break;
     }
   }
