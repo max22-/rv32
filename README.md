@@ -8,6 +8,7 @@
 [RARS -- RISC-V Assembler and Runtime Simulator](https://github.com/TheThirdOne/rars)
 
 ## Other implementations
+[https://github.com/cnlohr/mini-rv32ima/](https://github.com/cnlohr/mini-rv32ima/)
 [https://github.com/racerxdl/riscv-emulator](https://github.com/racerxdl/riscv-emulator) \
 [https://github.com/edubart/riscvm](https://github.com/edubart/riscvm)
 
