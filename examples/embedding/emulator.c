@@ -49,16 +49,6 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  /*
-  for(i = 0; i < 0x104; i++) {
-    if(i%16 == 0)
-      printf("%08x\t", i);
-    printf("%02x ", rv32->mem[i]);
-    if((i+1) % 16 == 0)
-      printf("\n");
-  }
-  */
-
   printf("\n");
   free(rv32);
   return 0;
