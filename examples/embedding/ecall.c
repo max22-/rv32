@@ -1,9 +1,8 @@
-#include <stdio.h>
 #include "rv32.h"
+#include <stdio.h>
 
-void ecall(RV32 *rv32)
-{
-  switch(rv32->r[REG_A7]) {
+void ecall(RV32 *rv32) {
+  switch (rv32->r[REG_A7]) {
   case 1:
     printf("%c", rv32->r[REG_A0]);
     break;
