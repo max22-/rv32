@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#define RV32_IMPLEMENTATION
 #include "rv32.h"
 
 int main(int argc, char *argv[])

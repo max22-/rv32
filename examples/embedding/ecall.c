@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include "rv32.h"
-#include "ecall.h"
 
 void ecall(RV32 *rv32)
 {
