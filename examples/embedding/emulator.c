@@ -3,6 +3,19 @@
 #define RV32_IMPLEMENTATION
 #include "rv32.h"
 
+rv32_result_t mmio_load8(uint32_t addr, uint8_t *ret) { return RV32_INVALID_MEMORY_ACCESS; }
+rv32_result_t mmio_load16(uint32_t addr, uint16_t *ret) { return RV32_INVALID_MEMORY_ACCESS; }
+rv32_result_t mmio_load32(uint32_t addr, uint32_t *ret) { return RV32_INVALID_MEMORY_ACCESS; }
+rv32_result_t mmio_store8(uint32_t addr, uint8_t val) { 
+  if(addr==0x80000000) { 
+    printf("%c", val); 
+    return RV32_OK;
+  }
+  return RV32_INVALID_MEMORY_ACCESS;
+}
+rv32_result_t mmio_store16(uint32_t addr, uint16_t val) { return RV32_INVALID_MEMORY_ACCESS; }
+rv32_result_t mmio_store32(uint32_t addr, uint32_t val) { return RV32_INVALID_MEMORY_ACCESS; }
+
 int main(int argc, char *argv[]) {
   FILE *f;
   RV32 *rv32;
@@ -48,7 +61,7 @@ int main(int argc, char *argv[]) {
       break;
     }
   }
-
+  printf("exit status: %d\n", rv32->r[REG_A0]);
   printf("\n");
   free(rv32);
   return 0;
