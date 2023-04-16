@@ -166,7 +166,6 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
   funct7 = (instr >> 25) & 0x7f;
 
   trace("pc=%08x\t", rv32->pc);
-  trace("opcode=%02x\t", opcode);
 
   rv32->r[REG_ZERO] = 0;
   switch (opcode) {
@@ -235,6 +234,7 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
         break;
       }
       default:
+        trace("invalid instruction\n");
         return RV32_INVALID_INSTRUCTION;
         break;
       }
@@ -265,8 +265,10 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
           rv32->r[RD] = rv32->r[RS1] >> rv32->r[RS2];
         else if (funct7 == 0x20) /* sra */
           rv32->r[RD] = (int32_t)rv32->r[RS1] >> rv32->r[RS2];
-        else
+        else {
+          trace("invalid instruction\n");
           return RV32_INVALID_INSTRUCTION;
+        }
         break;
       case 0x2: /* slt */
         rv32->r[RD] = (int32_t)rv32->r[RS1] < (int32_t)rv32->r[RS2] ? 1 : 0;
@@ -274,8 +276,10 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       case 0x3: /* sltu */
         rv32->r[RD] = rv32->r[RS1] < rv32->r[RS2] ? 1 : 0;
         break;
-      default:
+      default: {
+        trace("invalid instruction\n");
         return RV32_INVALID_INSTRUCTION;
+      }
       }
     }
     rv32->pc += 4;
@@ -310,8 +314,10 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       } else if (funct7 == 0x20) { /* srai */
         rv32->r[RD] = (int32_t)rv32->r[RS1] >> (IMM_I & 0x1f);
         trace("srai %s, %s, %u\n", rname[RD], rname[RS1], IMM_I & 0x1f);
-      } else
+      } else {
+        trace("invalid instruction\n");
         return RV32_INVALID_INSTRUCTION;
+      }
       break;
     case 0x2: /* slti */
       rv32->r[RD] = (int32_t)rv32->r[RS1] < SEXT_IMM_I ? 1 : 0;
@@ -322,6 +328,7 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       trace("sltiu %s, %s, %u\n", rname[RD], rname[RS1], IMM_I);
       break;
     default:
+      trace("invalid instruction\n");
       return RV32_INVALID_INSTRUCTION;
     }
     rv32->pc += 4;
@@ -381,8 +388,8 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       trace("lhu %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     default:
+      trace("invalid instruction\n");
       return RV32_INVALID_INSTRUCTION;
-      break;
     }
     rv32->pc += 4;
     break;
@@ -418,6 +425,7 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       trace("sw %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_S);
       break;
     default:
+      trace("invalid instruction\n");
       return RV32_INVALID_INSTRUCTION;
     }
     rv32->pc += 4;
@@ -468,6 +476,7 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       trace("bgeu %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_B);
       break;
     default:
+      trace("invalid instruction\n");
       return RV32_INVALID_INSTRUCTION;
     }
     break;
@@ -506,11 +515,13 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       trace("ebreak\n");
       return RV32_EBREAK;
     default:
+      trace("invalid instruction\n");
       return RV32_INVALID_INSTRUCTION;
     }
     rv32->pc += 4;
     break;
   default:
+    trace("invalid opcode\n");
     return RV32_INVALID_OPCODE;
   }
   return RV32_OK;
