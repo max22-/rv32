@@ -174,26 +174,27 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     if (funct7 == 0x01) { /* Multiply extension */
       switch (funct3) {
       case 0x0: /* mul */
+        trace("mul %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         rv32->r[RD] =
             (((int64_t)rv32->r[RS1] * (int64_t)rv32->r[RS2]) & 0xFFFFFFFF);
-        trace("mul %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         break;
       case 0x1: /* mulh */
+        trace("mulh %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         rv32->r[RD] =
             ((int64_t)(int32_t)rv32->r[RS1] * (int64_t)(int32_t)rv32->r[RS2]) >>
             32;
-        trace("mulh %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         break;
       case 0x2: /* mulhsu */
+        trace("mulhsu %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         rv32->r[RD] =
             ((int64_t)(int32_t)rv32->r[RS1] * (int64_t)rv32->r[RS2]) >> 32;
-        trace("mulhsu %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         break;
       case 0x3: /* mulhu */
-        rv32->r[RD] = ((uint64_t)rv32->r[RS1] * (uint64_t)rv32->r[RS2]) >> 32;
         trace("mulhu %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
+        rv32->r[RD] = ((uint64_t)rv32->r[RS1] * (uint64_t)rv32->r[RS2]) >> 32;
         break;
       case 0x4: /* div */ {
+        trace("div %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         int32_t dividend = rv32->r[RS1], divisor = rv32->r[RS2];
         if (divisor == 0)
           rv32->r[RD] = 0xFFFFFFFF;
@@ -201,36 +202,35 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
           rv32->r[RD] = dividend; /* overflow */
         else
           rv32->r[RD] = dividend / divisor;
-        trace("div %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         break;
       }
       case 0x5: /* divu */ {
+        trace("divu %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         uint32_t dividend = rv32->r[RS1], divisor = rv32->r[RS2];
         if (divisor == 0)
           rv32->r[RD] = 0xFFFFFFFF;
         else
           rv32->r[RD] = dividend / divisor;
-        trace("divu %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         break;
       }
       case 0x6: /* rem */ {
+        trace("rem %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         int32_t dividend = rv32->r[RS1], divisor = rv32->r[RS2];
         if (divisor == 0)
           rv32->r[RD] = dividend;
         else if (dividend == 0x80000000 && divisor == -1)
           rv32->r[RD] = 0; /* overflow) */
         else
-          rv32->r[RD] = dividend % divisor;
-        trace("rem %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
+          rv32->r[RD] = dividend % divisor;        
         break;
       }
       case 0x7: /* remu */ {
+        trace("remu %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         uint32_t dividend = rv32->r[RS1], divisor = rv32->r[RS2];
         if (divisor == 0)
           rv32->r[RD] = dividend;
         else
           rv32->r[RD] = dividend % divisor;
-        trace("remu %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         break;
       }
       default:
@@ -241,39 +241,53 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     } else {
       switch (funct3) {
       case 0x0:
-        if (funct7 == 0x00) /* add */
+        if (funct7 == 0x00) /* add */ {
+          trace("add %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
           rv32->r[RD] = rv32->r[RS1] + rv32->r[RS2];
-        else if (funct7 == 0x20) /* sub */
+        }
+        else if (funct7 == 0x20) /* sub */ {
+          trace("sub %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
           rv32->r[RD] = rv32->r[RS1] - rv32->r[RS2];
+        }
         else
           return RV32_INVALID_INSTRUCTION;
         break;
       case 0x4: /* xor */
+        trace("xor %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         rv32->r[RD] = rv32->r[RS1] ^ rv32->r[RS2];
         break;
       case 0x6: /* or */
+        trace("or %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         rv32->r[RD] = rv32->r[RS1] | rv32->r[RS2];
         break;
       case 0x7: /* and */
+        trace("and %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         rv32->r[RD] = rv32->r[RS1] & rv32->r[RS2];
         break;
       case 0x1: /* sll */
+        trace("sll %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         rv32->r[RD] = rv32->r[RS1] << rv32->r[RS2];
         break;
       case 0x5:
-        if (funct7 == 0x0) /* srl */
+        if (funct7 == 0x0) /* srl */ {
+          trace("srl %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
           rv32->r[RD] = rv32->r[RS1] >> rv32->r[RS2];
-        else if (funct7 == 0x20) /* sra */
+        }
+        else if (funct7 == 0x20) /* sra */ {
+          trace("sra %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
           rv32->r[RD] = (int32_t)rv32->r[RS1] >> rv32->r[RS2];
+        }
         else {
           trace("invalid instruction\n");
           return RV32_INVALID_INSTRUCTION;
         }
         break;
       case 0x2: /* slt */
+        trace("slt %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         rv32->r[RD] = (int32_t)rv32->r[RS1] < (int32_t)rv32->r[RS2] ? 1 : 0;
         break;
       case 0x3: /* sltu */
+        trace("sltu %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
         rv32->r[RD] = rv32->r[RS1] < rv32->r[RS2] ? 1 : 0;
         break;
       default: {
@@ -288,44 +302,45 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
   case 0x13:
     switch (funct3) {
     case 0x00: /* addi */
-      rv32->r[RD] = rv32->r[RS1] + SEXT_IMM_I;
       trace("addi %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
+      rv32->r[RD] = rv32->r[RS1] + SEXT_IMM_I;
       break;
     case 0x4: /* xori */
-      rv32->r[RD] = rv32->r[RS1] ^ SEXT_IMM_I;
       trace("xori %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
+      rv32->r[RD] = rv32->r[RS1] ^ SEXT_IMM_I;
       break;
     case 0x6: /* ori */
+      trace("ori %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
       rv32->r[RD] = rv32->r[RS1] | SEXT_IMM_I;
       trace("ori %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     case 0x7: /* andi */
-      rv32->r[RD] = rv32->r[RS1] & SEXT_IMM_I;
       trace("andi %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
+      rv32->r[RD] = rv32->r[RS1] & SEXT_IMM_I;
       break;
     case 0x1: /* slli */
-      rv32->r[RD] = rv32->r[RS1] << (IMM_I & 0x1f);
       trace("slli %s, %s, %u\n", rname[RD], rname[RS1], IMM_I & 0x1f);
+      rv32->r[RD] = rv32->r[RS1] << (IMM_I & 0x1f);
       break;
     case 0x5:
       if (funct7 == 0x00) { /* srli */
-        rv32->r[RD] = rv32->r[RS1] >> (IMM_I & 0x1f);
         trace("srli %s, %s, %u\n", rname[RD], rname[RS1], IMM_I & 0x1f);
+        rv32->r[RD] = rv32->r[RS1] >> (IMM_I & 0x1f);
       } else if (funct7 == 0x20) { /* srai */
-        rv32->r[RD] = (int32_t)rv32->r[RS1] >> (IMM_I & 0x1f);
         trace("srai %s, %s, %u\n", rname[RD], rname[RS1], IMM_I & 0x1f);
+        rv32->r[RD] = (int32_t)rv32->r[RS1] >> (IMM_I & 0x1f);
       } else {
         trace("invalid instruction\n");
         return RV32_INVALID_INSTRUCTION;
       }
       break;
     case 0x2: /* slti */
-      rv32->r[RD] = (int32_t)rv32->r[RS1] < SEXT_IMM_I ? 1 : 0;
       trace("andi %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
+      rv32->r[RD] = (int32_t)rv32->r[RS1] < SEXT_IMM_I ? 1 : 0;
       break;
     case 0x3: /* sltiu */
-      rv32->r[RD] = rv32->r[RS1] < IMM_I ? 1 : 0;
       trace("sltiu %s, %s, %u\n", rname[RD], rname[RS1], IMM_I);
+      rv32->r[RD] = rv32->r[RS1] < IMM_I ? 1 : 0;
       break;
     default:
       trace("invalid instruction\n");
@@ -338,6 +353,7 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     addr = rv32->r[RS1] + SEXT_IMM_I;
     switch (funct3) {
     case 0x0: /* lb */
+      trace("lb %s, %d(%s)\n", rname[RD], SEXT_IMM_I, rname[RS1]);
       if (addr >= rv32->mem_size) {
         if(mmio_load8(addr, &tmp8) != RV32_OK)
           return RV32_INVALID_MEMORY_ACCESS;
@@ -345,9 +361,9 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       } else {
         rv32->r[RD] = SEXT(LOAD8(addr), 8);
       }
-      trace("lb %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     case 0x1: /* lh */
+      trace("lh %s, %d(%s)\n", rname[RD], SEXT_IMM_I, rname[RS1]);
       if (addr >= rv32->mem_size - 1) {
         if(mmio_load16(addr, &tmp16) != RV32_OK)
           return RV32_INVALID_MEMORY_ACCESS;
@@ -355,9 +371,9 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       } else {
         rv32->r[RD] = SEXT(LOAD16(addr), 16);
       }
-      trace("lh %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     case 0x2: /* lw */
+      trace("lw %s, %d(%s)\n", rname[RD], SEXT_IMM_I, rname[RS1]);
       if (addr >= rv32->mem_size - 3) {
         if(mmio_load32(addr, &tmp32) != RV32_OK)
           return RV32_INVALID_MEMORY_ACCESS;
@@ -365,9 +381,9 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       } else {
         rv32->r[RD] = LOAD32(addr);
       }
-      trace("lw %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     case 0x4: /* lbu */
+      trace("lbu %s, %d(%s)\n", rname[RD], SEXT_IMM_I, rname[RS1]);
       if (addr >= rv32->mem_size) {
         if(mmio_load8(addr, &tmp8) != RV32_OK)
           return RV32_INVALID_MEMORY_ACCESS;
@@ -375,9 +391,9 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       } else {
         rv32->r[RD] = LOAD8(addr);
       }
-      trace("lbu %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     case 0x5: /* lhu */
+      trace("lhu %s, %d(%s)\n", rname[RD], SEXT_IMM_I, rname[RS1]);
       if (addr >= rv32->mem_size - 1) {
         if(mmio_load16(addr, &tmp16) != RV32_OK)
           return RV32_INVALID_MEMORY_ACCESS;
@@ -385,7 +401,6 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       } else {
         rv32->r[RD] = LOAD16(addr);
       }
-      trace("lhu %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
       break;
     default:
       trace("invalid instruction\n");
@@ -398,31 +413,31 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     addr = rv32->r[RS1] + SEXT_IMM_S;
     switch (funct3) {
     case 0x0: /* sb */
+      trace("sb %s, %d(%s)\n", rname[RD], SEXT_IMM_I, rname[RS1]);
       if (addr >= rv32->mem_size) {
         if(mmio_store8(addr, rv32->r[RS2] & 0xff) != RV32_OK)
           return RV32_INVALID_MEMORY_ACCESS;
       } else {
         STORE8(addr, rv32->r[RS2] & 0xff);
       }
-      trace("sb %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_S);
       break;
     case 0x1: /* sh */
+      trace("sh %s, %d(%s)\n", rname[RD], SEXT_IMM_I, rname[RS1]);
       if (addr >= rv32->mem_size) {
         if(mmio_store16(addr, rv32->r[RS2] & 0xffff) != RV32_OK)
           return RV32_INVALID_MEMORY_ACCESS;
       } else {
         STORE16(addr, rv32->r[RS2] & 0xffff);
       }
-      trace("sh %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_S);
       break;
     case 0x2: /* sw */
+      trace("sw %s, %d(%s)\n", rname[RD], SEXT_IMM_I, rname[RS1]);
       if (addr >= rv32->mem_size - 3) {
         if(mmio_store32(addr, rv32->r[RS2]) != RV32_OK)
           return RV32_INVALID_MEMORY_ACCESS;
       } else {
         STORE32(addr, rv32->r[RS2]);
       }
-      trace("sw %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_S);
       break;
     default:
       trace("invalid instruction\n");
@@ -434,18 +449,18 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
   case 0x63:
     switch (funct3) {
     case 0x0: /* beq */
+      trace("beq %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_B);
       if (rv32->r[RS1] == rv32->r[RS2])
         rv32->pc += SEXT_IMM_B;
       else
         rv32->pc += 4;
-      trace("beq %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_B);
       break;
     case 0x1: /* bne */
+      trace("bne %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_B);
       if (rv32->r[RS1] != rv32->r[RS2])
         rv32->pc += SEXT_IMM_B;
       else
         rv32->pc += 4;
-      trace("bne %s, %s, %d\n", rname[RS1], rname[RS2], SEXT_IMM_B);
       break;
     case 0x4: /* blt */
       if ((int32_t)rv32->r[RS1] < (int32_t)rv32->r[RS2])
@@ -482,34 +497,34 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     break;
 
   case 0x6f: /* jal */
+    trace("jal %s, %d\n", rname[RD], SEXT_IMM_J);
     rv32->r[RD] = rv32->pc + 4;
     rv32->pc += SEXT_IMM_J;
-    trace("jal %s, %d\n", rname[RD], SEXT_IMM_J);
     break;
 
   case 0x67: /* jalr */
+    trace("jalr %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
     rv32->r[RD] = rv32->pc + 4;
     rv32->pc = rv32->r[RS1] + SEXT_IMM_I;
-    trace("jalr %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
     break;
 
   case 0x37: /* lui */
+    trace("lui %s, %d\n", rname[RD], SEXT_IMM_U);
     rv32->r[RD] = SEXT_IMM_U << 12;
     rv32->pc += 4;
-    trace("lui %s, %d\n", rname[RD], SEXT_IMM_U);
     break;
 
   case 0x17: /* auipc */
+    trace("auipc %s, %d\n", rname[RD], SEXT_IMM_U);
     rv32->r[RD] = rv32->pc + (SEXT_IMM_U << 12);
     rv32->pc += 4;
-    trace("auipc %s, %d\n", rname[RD], SEXT_IMM_U);
     break;
 
   case 0x73: /* ecall */
     switch (IMM_I) {
     case 0x0: /* ecall */
-      ecall(rv32);
       trace("ecall %d\n", rv32->r[17]);
+      ecall(rv32);
       break;
     case 0x1: /* ebreak */
       trace("ebreak\n");
