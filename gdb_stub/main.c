@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
       if(c == '+')
         state = WAIT_START;
       else
-        FATAL("gdb didn't acknowledged last packet"); /* TODO: implement re-send */
+        FATAL("gdb didn't acknowledge last packet"); /* TODO: implement re-send */
       break;
     }
   }
