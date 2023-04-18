@@ -1,3 +1,6 @@
+#ifndef INCLUDE_RV32_H
+#define INCLUDE_RV32_H
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -542,4 +545,5 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
   return RV32_OK;
 }
 
-#endif
+#endif /* RV32_IMPLEMENTATION */
+#endif /* INCLUDE_RV32_H */
