@@ -1,12 +1,14 @@
 #ifndef INCLUDE_RSP_H
 #define INCLUDE_RSP_H
 
-void rsp_handle_byte(char c);
+#include "rv32.h"
+void rsp_handle_byte(RV32 *, char);
 
 #if defined(RSP_IMPLEMENTATION)
 
 #include <string.h>
 #include <stdint.h>
+
 
 #if !defined(RSP_FATAL)
 #include <stdio.h>
@@ -97,9 +99,19 @@ void rsp_packet_quick_send(const char* data) {
   rsp_packet_send(&p);
 }
 
+void rsp_send_registers(RV32 *rv32) {
+    rsp_packet_t p;
+    rsp_packet_begin(&p);
+    for(int i = 0; i < 32; i++)
+        rsp_packet_append_u32(&p, rv32->r[i]);
+    rsp_packet_append_u32(&p, rv32->pc);
+    rsp_packet_end(&p);
+    rsp_packet_send(&p);
+}
+
 #define len(x) (sizeof(x) - 1) /* For const char arrays only */
 #define isprefix(s1, s2) (size >= len(s1) && !strncmp(s1, (const char*)s2, len(s1)))
-void rsp_handle_packet(uint8_t *buffer, size_t size) {
+void rsp_handle_packet(RV32 *rv32, uint8_t *buffer, size_t size) {
   const char 
     qSupported[] = "qSupported",
     qAttached[] = "qAttached";
@@ -110,18 +122,13 @@ void rsp_handle_packet(uint8_t *buffer, size_t size) {
   else if(isprefix(qAttached, buffer))
     rsp_packet_quick_send("1");
   else if(isprefix("g", buffer)) {
-    rsp_packet_t p;
-    rsp_packet_begin(&p);
-    for(int i = 0; i < 33; i++)
-      rsp_packet_append_u32(&p, i);
-    rsp_packet_end(&p);
-    rsp_packet_send(&p);
+    rsp_send_registers(rv32);
   }
   else
     printf("$#00");
 }
 
-void rsp_handle_byte(char c) {
+void rsp_handle_byte(RV32 *rv32, char c) {
   static uint8_t in_buffer[RSP_BUFFER_SIZE], sum1, sum2;
   static size_t iptr;
   static enum rsp_state state = RSP_WAIT_START;
@@ -148,7 +155,7 @@ void rsp_handle_byte(char c) {
       sum2 |= rsp_hex2int(c);
       if(sum1 == sum2) {
         printf("+");
-        rsp_handle_packet(in_buffer, iptr);
+        rsp_handle_packet(rv32, in_buffer, iptr);
       } else printf("-");
       fflush(stdout);
       state = RSP_WAIT_ACK;

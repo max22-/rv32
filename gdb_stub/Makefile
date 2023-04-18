@@ -1,4 +1,4 @@
-CFLAGS = -std=c99 -pedantic -Wall
+CFLAGS = -std=c99 -pedantic -Wall -I../src -DLITTLE_ENDIAN_HOST
 
 all: stub
 
