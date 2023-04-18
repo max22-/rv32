@@ -31,17 +31,35 @@ typedef struct {
   uint8_t checksum;
 } rsp_packet_t;
 
-uint8_t rsp_hex2int(uint8_t h) {
+/* example: 'a' -> 0xa */
+uint8_t rsp_from_hex_digit(uint8_t h) {
   if(h >= '0' && h <= '9') return h - '0';
   if(h >= 'a' && h <= 'f') return h - 'a' + 10;
   if(h >= 'A' && h <= 'F') return h - 'A' + 10;
   RSP_FATAL("invalid hex digit");
 }
 
-uint8_t rsp_int2hex(uint8_t i) {
+/* example: 0xa -> 'a' */
+uint8_t rsp_to_hex_digit(uint8_t i) {
   const char digits[] = "0123456789abcdef";
   if(i > 0xf) RSP_FATAL("can't convert to hex digit");
   return digits[i];
+}
+
+/* example: "ab" -> 0xab */
+uint8_t rsp_hex_to_u8(const uint8_t *h) {
+  return (rsp_from_hex_digit(h[0]) << 4)
+    | (rsp_from_hex_digit(h[1]));
+}
+
+/* example: "cdab3412" -> 0x1234abcd */
+uint32_t rsp_hex_to_u32(const uint8_t *h) {
+  uint32_t ret = 0;
+  for(int i = 0; i < 4; i++) {
+    ret |= rsp_hex_to_u8(h) << (i * 4);
+    h += 2;
+  }
+  return ret;
 }
 
 void rsp_packet_begin(rsp_packet_t *p) {
@@ -71,8 +89,8 @@ void rsp_packet_append(rsp_packet_t *p, const char* data) {
 }
 
 void rsp_packet_append_u8(rsp_packet_t *p,  uint8_t b) {
-  rsp_packet_append_byte_raw(p, rsp_int2hex((b >> 4) & 0xf));
-  rsp_packet_append_byte_raw(p, rsp_int2hex(b & 0xf));
+  rsp_packet_append_byte_raw(p, rsp_to_hex_digit((b >> 4) & 0xf));
+  rsp_packet_append_byte_raw(p, rsp_to_hex_digit(b & 0xf));
 }
 
 void rsp_packet_append_u32(rsp_packet_t *p, uint32_t w) {
@@ -115,10 +133,12 @@ rsp_handler_result_t rsp_send_registers(RV32 *rv32) {
 rsp_handler_result_t rsp_receive_registers(RV32 *rv32, uint8_t *buffer, size_t size) {
     if(size != 265) /* 'G' + 33 registers * 8 nibbles */
         RSP_FATAL("received invalid number of registers");
-    FILE *f = fopen("debug.txt", "w");
-    fprintf(f, "size=%ld\n", size);
-    fwrite(buffer, size, 1, f);
-    fclose(f);
+    buffer++; size--; /* We discard the 'G' */
+    for(int i = 0; i < 32; i++) {
+      rv32->r[i] = rsp_hex_to_u32(buffer);
+      buffer += 8; /* 8 hex digits per u32 numbers */
+    }
+    rv32->pc = rsp_hex_to_u32(buffer);
     return rsp_packet_quick_send("");
 }
 
@@ -165,11 +185,11 @@ void rsp_handle_byte(RV32 *rv32, char c) {
       } else RSP_FATAL("input buffer too small");
       break;
     case RSP_CHECKSUM_1:
-      sum2 = rsp_hex2int(c) << 4;
+      sum2 = rsp_from_hex_digit(c) << 4;
       state = RSP_CHECKSUM_2;
       break;
     case RSP_CHECKSUM_2:
-      sum2 |= rsp_hex2int(c);
+      sum2 |= rsp_from_hex_digit(c);
       if(sum1 == sum2) {
         printf("+");
         handler_result = rsp_handle_packet(rv32, in_buffer, iptr);
