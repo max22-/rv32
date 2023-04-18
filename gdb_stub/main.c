@@ -113,15 +113,12 @@ void handle_packet(uint8_t *buffer, size_t size) {
     printf("$#00");
 }
 
-int main(int argc, char *argv[])
-{
-  int c;
-  uint8_t in_buffer[RSP_BUFFER_SIZE], sum1, sum2;
-  size_t iptr;
-  enum State state = WAIT_START;
+void rsp_handle_byte(char c) {
+  static uint8_t in_buffer[RSP_BUFFER_SIZE], sum1, sum2;
+  static size_t iptr;
+  static enum State state = WAIT_START;
 
-  while((c = fgetc(stdin)) != EOF) {
-    switch(state) {
+  switch(state) {
     case WAIT_START:
       iptr = 0;
       sum1 = sum2 = 0;
@@ -155,7 +152,14 @@ int main(int argc, char *argv[])
         FATAL("gdb didn't acknowledge last packet"); /* TODO: implement re-send */
       break;
     }
-  }
+}
+
+int main(int argc, char *argv[])
+{
+  int c;
+
+  while((c = fgetc(stdin)) != EOF)
+    rsp_handle_byte(c);
 
   return 0;
 }
