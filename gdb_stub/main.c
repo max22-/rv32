@@ -14,9 +14,11 @@
 
 enum State {WAIT_START, PACKET_DATA, CHECKSUM_1, CHECKSUM_2, WAIT_ACK};
 
-char rsp_out_buffer[RSP_BUFFER_SIZE];
-int optr;
-uint8_t out_checksum;
+typedef struct {
+  char buffer[RSP_BUFFER_SIZE];
+  int ptr;
+  uint8_t checksum;
+} rsp_packet_t;
 
 uint8_t hex2int(uint8_t h) {
   if(h >= '0' && h <= '9') return h - '0';
@@ -31,59 +33,60 @@ uint8_t int2hex(uint8_t i) {
   return digits[i];
 }
 
-void packet_begin() {
-  rsp_out_buffer[0] = '$';
-  optr = 1;
-  out_checksum = 0;
+void packet_begin(rsp_packet_t *p) {
+  p->buffer[0] = '$';
+  p->ptr = 1;
+  p->checksum = 0;
 }
 
-void packet_append_byte_raw(uint8_t b) {
-  if(optr < RSP_BUFFER_SIZE) {
-    rsp_out_buffer[optr++] = b;
-    out_checksum += b;
+void packet_append_byte_raw(rsp_packet_t *p, uint8_t b) {
+  if(p->ptr < RSP_BUFFER_SIZE) {
+    p->buffer[p->ptr++] = b;
+    p->checksum += b;
   } else FATAL("output buffer too small");
 }
 
-void packet_append(const char* data) {
+void packet_append(rsp_packet_t *p, const char* data) {
   while(*data) {
-    if(optr < RSP_BUFFER_SIZE) {
+    if(p->ptr < RSP_BUFFER_SIZE) {
       uint8_t c = *data++;
       if(c == '#' || c == '$' || c == '}') {
-        packet_append_byte_raw('}');
+        packet_append_byte_raw(p, '}');
         c ^= 0x20;
       }
-      packet_append_byte_raw(c);
+      packet_append_byte_raw(p, c);
     } else FATAL("output buffer too small");
   }
 }
 
-void packet_append_u8(uint8_t b) {
-  packet_append_byte_raw(int2hex((b >> 4) & 0xf));
-  packet_append_byte_raw(int2hex(b & 0xf));
+void packet_append_u8(rsp_packet_t *p,  uint8_t b) {
+  packet_append_byte_raw(p, int2hex((b >> 4) & 0xf));
+  packet_append_byte_raw(p, int2hex(b & 0xf));
 }
 
-void packet_append_u32(uint32_t w) {
+void packet_append_u32(rsp_packet_t *p, uint32_t w) {
   for(int i = 0; i < 32; i += 8)
-    packet_append_u8((w >> i) & 0xff);
+    packet_append_u8(p, (w >> i) & 0xff);
 }
 
-void packet_end() {
-  uint8_t saved_checksum = out_checksum;
-  packet_append_byte_raw('#');
-  packet_append_u8(saved_checksum);
-  packet_append_byte_raw(0);
+void packet_end(rsp_packet_t *p) {
+  uint8_t saved_checksum = p->checksum;
+  packet_append_byte_raw(p, '#');
+  packet_append_u8(p, saved_checksum);
+  packet_append_byte_raw(p, 0);
 }
 
-void packet_send() {
-  printf("%s", rsp_out_buffer);
+void packet_send(rsp_packet_t *p) {
+  printf("%s", p->buffer);
   fflush(stdout);
 }
 
 void packet_quick_send(const char* data) {
-  packet_begin();
-  packet_append(data);
-  packet_end();
-  packet_send();
+  rsp_packet_t p;
+  packet_begin(&p);
+  packet_append(&p, data);
+  packet_end(&p);
+  packet_send(&p);
 }
 
 #define len(x) (sizeof(x) - 1) /* For const char arrays only */
@@ -99,11 +102,12 @@ void handle_packet(uint8_t *buffer, size_t size) {
   else if(isprefix(qAttached, buffer))
     packet_quick_send("1");
   else if(isprefix("g", buffer)) {
-    packet_begin();
+    rsp_packet_t p;
+    packet_begin(&p);
     for(int i = 0; i < 33; i++)
-      packet_append_u32(i);
-    packet_end();
-    packet_send();
+      packet_append_u32(&p, i);
+    packet_end(&p);
+    packet_send(&p);
   }
   else
     printf("$#00");
