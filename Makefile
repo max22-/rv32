@@ -1,4 +1,4 @@
-ENDIANNESS = LITTLE_ENDIAN # LITTLE_ENDIAN or BIG_ENDIAN
+ENDIANNESS = LITTLE_ENDIAN_HOST # LITTLE_ENDIAN_HOST or BIG_ENDIAN_HOST
 CFLAGS = -O2 -Wall -std=c89 -pedantic
 
 all: bin/rv32 bin/asm_program.bin bin/c_program.bin

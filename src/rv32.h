@@ -86,7 +86,7 @@ extern void ecall(RV32 *rv32);
    (instr & 0xff000) | ((instr & 0x80000000) >> 11))
 #define SEXT_IMM_J ((int32_t)SEXT(IMM_J, 20))
 
-#if defined(LITTLE_ENDIAN)
+#if defined(LITTLE_ENDIAN_HOST)
 #define LOAD8(addr) (*(uint8_t *)(rv32->mem + (addr)))
 #define LOAD16(addr) (*(uint16_t *)(rv32->mem + (addr)))
 #define LOAD32(addr) (*(uint32_t *)(rv32->mem + (addr)))
@@ -104,7 +104,7 @@ extern void ecall(RV32 *rv32);
     *(uint32_t *)(rv32->mem + (addr)) = val;                                   \
   } while (0)
 
-#elif defined(BIG_ENDIAN) /* BIG_ENDIAN */
+#elif defined(BIG_ENDIAN_HOST)
 #define LOAD8(addr) (*(uint8_t *)(rv32->mem + (addr)))
 #define LOAD16(addr) (LOAD8(addr) | LOAD8((addr) + 1) << 8)
 #define LOAD32(addr)                                                           \
@@ -127,7 +127,7 @@ extern void ecall(RV32 *rv32);
     STORE8(addr + 3, ((val) >> 24) & 0xff);                                    \
   } while (0)
 #else
-#error "Please define LITTLE_ENDIAN or BIG_ENDIAN macro"
+#error "Please define LITTLE_ENDIAN_HOST or BIG_ENDIAN_HOST macro"
 #endif
 
 /* Should return RV32_OK, or RV32_INVALID_MEMORY_ACCESS */
