@@ -23,6 +23,7 @@ void rsp_handle_byte(RV32 *, char);
 #define RSP_BUFFER_SIZE 1024
 
 enum rsp_state {RSP_WAIT_START, RSP_PACKET_DATA, RSP_CHECKSUM_1, RSP_CHECKSUM_2, RSP_WAIT_ACK};
+typedef enum {RSP_NO_PACKET_SENT, RSP_PACKET_SENT} rsp_handler_result_t;
 
 typedef struct {
   char buffer[RSP_BUFFER_SIZE];
@@ -91,15 +92,16 @@ void rsp_packet_send(rsp_packet_t *p) {
   fflush(stdout);
 }
 
-void rsp_packet_quick_send(const char* data) {
+rsp_handler_result_t rsp_packet_quick_send(const char* data) {
   rsp_packet_t p;
   rsp_packet_begin(&p);
   rsp_packet_append(&p, data);
   rsp_packet_end(&p);
   rsp_packet_send(&p);
+  return RSP_PACKET_SENT;
 }
 
-void rsp_send_registers(RV32 *rv32) {
+rsp_handler_result_t rsp_send_registers(RV32 *rv32) {
     rsp_packet_t p;
     rsp_packet_begin(&p);
     for(int i = 0; i < 32; i++)
@@ -107,31 +109,46 @@ void rsp_send_registers(RV32 *rv32) {
     rsp_packet_append_u32(&p, rv32->pc);
     rsp_packet_end(&p);
     rsp_packet_send(&p);
+    return RSP_PACKET_SENT;
+}
+
+rsp_handler_result_t rsp_receive_registers(RV32 *rv32, uint8_t *buffer, size_t size) {
+    if(size != 265) /* 'G' + 33 registers * 8 nibbles */
+        RSP_FATAL("received invalid number of registers");
+    FILE *f = fopen("debug.txt", "w");
+    fprintf(f, "size=%ld\n", size);
+    fwrite(buffer, size, 1, f);
+    fclose(f);
+    return rsp_packet_quick_send("");
 }
 
 #define len(x) (sizeof(x) - 1) /* For const char arrays only */
 #define isprefix(s1, s2) (size >= len(s1) && !strncmp(s1, (const char*)s2, len(s1)))
-void rsp_handle_packet(RV32 *rv32, uint8_t *buffer, size_t size) {
+rsp_handler_result_t rsp_handle_packet(RV32 *rv32, uint8_t *buffer, size_t size) {
   const char 
     qSupported[] = "qSupported",
     qAttached[] = "qAttached";
   if(isprefix(qSupported, buffer))
-    rsp_packet_quick_send("hwbreak+");
+    return rsp_packet_quick_send("hwbreak+");
   else if(isprefix("?", buffer))
-    rsp_packet_quick_send("S05");
+    return rsp_packet_quick_send("S05");
   else if(isprefix(qAttached, buffer))
-    rsp_packet_quick_send("1");
+    return rsp_packet_quick_send("1");
   else if(isprefix("g", buffer)) {
-    rsp_send_registers(rv32);
+    return rsp_send_registers(rv32);
+  }
+  else if(isprefix("G", buffer)) {
+    return rsp_receive_registers(rv32, buffer, size);
   }
   else
-    printf("$#00");
+    return rsp_packet_quick_send("");
 }
 
 void rsp_handle_byte(RV32 *rv32, char c) {
   static uint8_t in_buffer[RSP_BUFFER_SIZE], sum1, sum2;
   static size_t iptr;
   static enum rsp_state state = RSP_WAIT_START;
+  rsp_handler_result_t handler_result;
 
   switch(state) {
     case RSP_WAIT_START:
@@ -155,10 +172,12 @@ void rsp_handle_byte(RV32 *rv32, char c) {
       sum2 |= rsp_hex2int(c);
       if(sum1 == sum2) {
         printf("+");
-        rsp_handle_packet(rv32, in_buffer, iptr);
+        handler_result = rsp_handle_packet(rv32, in_buffer, iptr);
       } else printf("-");
       fflush(stdout);
-      state = RSP_WAIT_ACK;
+      if(handler_result == RSP_PACKET_SENT)
+        state = RSP_WAIT_ACK;
+      else state = RSP_WAIT_START;
       break;
     case RSP_WAIT_ACK:
       if(c == '+')
