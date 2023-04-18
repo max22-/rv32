@@ -1,3 +1,4 @@
+#include <stdio.h>
 #define RSP_IMPLEMENTATION
 #include "rsp.h"
 
