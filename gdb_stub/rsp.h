@@ -31,6 +31,13 @@ typedef struct {
   uint8_t checksum;
 } rsp_packet_t;
 
+int rsp_is_hex_digit(uint8_t h) {
+  if(h >= '0' && h <= '9') return 1;
+  if(h >= 'a' && h <= 'f') return 1;
+  if(h >= 'A' && h <= 'F') return 1;
+  return 0;
+}
+
 /* example: 'a' -> 0xa */
 uint8_t rsp_from_hex_digit(uint8_t h) {
   if(h >= '0' && h <= '9') return h - '0';
@@ -105,9 +112,10 @@ void rsp_packet_end(rsp_packet_t *p) {
   rsp_packet_append_byte_raw(p, 0);
 }
 
-void rsp_packet_send(rsp_packet_t *p) {
+rsp_handler_result_t rsp_packet_send(rsp_packet_t *p) {
   printf("%s", p->buffer);
   fflush(stdout);
+  return RSP_PACKET_SENT;
 }
 
 rsp_handler_result_t rsp_packet_quick_send(const char* data) {
@@ -119,18 +127,17 @@ rsp_handler_result_t rsp_packet_quick_send(const char* data) {
   return RSP_PACKET_SENT;
 }
 
-rsp_handler_result_t rsp_send_registers(RV32 *rv32) {
+rsp_handler_result_t rsp_read_registers(RV32 *rv32) {
     rsp_packet_t p;
     rsp_packet_begin(&p);
     for(int i = 0; i < 32; i++)
         rsp_packet_append_u32(&p, rv32->r[i]);
     rsp_packet_append_u32(&p, rv32->pc);
     rsp_packet_end(&p);
-    rsp_packet_send(&p);
-    return RSP_PACKET_SENT;
+    return rsp_packet_send(&p);
 }
 
-rsp_handler_result_t rsp_receive_registers(RV32 *rv32, uint8_t *buffer, size_t size) {
+rsp_handler_result_t rsp_write_registers(RV32 *rv32, uint8_t *buffer, size_t size) {
     if(size != 265) /* 'G' + 33 registers * 8 nibbles */
         RSP_FATAL("received invalid number of registers");
     buffer++; size--; /* We discard the 'G' */
@@ -140,6 +147,74 @@ rsp_handler_result_t rsp_receive_registers(RV32 *rv32, uint8_t *buffer, size_t s
     }
     rv32->pc = rsp_hex_to_u32(buffer);
     return rsp_packet_quick_send("");
+}
+
+rsp_handler_result_t rsp_read_memory(RV32 *rv32, uint8_t *buffer, size_t size) {
+  rsp_packet_t p;
+  uint32_t start = 0, chunk_size = 0;
+  buffer++; size--;
+  if(!rsp_is_hex_digit(buffer[0]))
+    RSP_FATAL("invalid 'm' message from gdb");
+  while(rsp_is_hex_digit(buffer[0]) && size) {
+    start <<= 4;
+    start |= rsp_from_hex_digit(buffer[0]);
+    buffer++; size--;
+  }
+  if(!size || buffer[0] != ',')
+    RSP_FATAL("invalid 'm' message from gdb");
+  buffer++; size--;
+  while(rsp_is_hex_digit(buffer[0]) && size) {
+    chunk_size <<= 4;
+    chunk_size |= rsp_from_hex_digit(buffer[0]);
+    buffer++; size--;
+  }
+  if(size != 0)
+    RSP_FATAL("invalid 'm' message from gdb");
+  if(start >= rv32->mem_size || start + chunk_size >= rv32->mem_size) {
+    return rsp_packet_quick_send("");
+    //RSP_FATAL("invalid memory access");
+  }
+  rsp_packet_begin(&p);
+  for(int i = 0; i < chunk_size; i++)
+    rsp_packet_append_u8(&p, rv32->mem[start+i]);
+  rsp_packet_end(&p);
+  return rsp_packet_send(&p);
+}
+
+/* $M0,4:00010203#9d */
+rsp_handler_result_t rsp_write_memory(RV32 *rv32, uint8_t *buffer, size_t size) {
+  uint32_t start = 0, chunk_size = 0;
+
+  buffer++; size--;
+  if(!rsp_is_hex_digit(buffer[0]))
+    RSP_FATAL("invalid 'M' message from gdb");
+  while(rsp_is_hex_digit(buffer[0]) && size) {
+    start <<= 4;
+    start |= rsp_from_hex_digit(buffer[0]);
+    buffer++; size--;
+  }
+  if(!size || buffer[0] != ',')
+    RSP_FATAL("invalid 'M' message from gdb");
+  buffer++; size--;
+  while(rsp_is_hex_digit(buffer[0]) && size) {
+    chunk_size <<= 4;
+    chunk_size |= rsp_from_hex_digit(buffer[0]);
+    buffer++; size--;
+  }
+  if(buffer[0] != ':')
+    RSP_FATAL("invalid 'M' message from gdb");
+  buffer++; size--;
+  if(size != 2 * chunk_size)
+    RSP_FATAL("invalid size in 'M' message from gdb");
+  if(start >= rv32->mem_size || start + chunk_size >= rv32->mem_size) {
+    return rsp_packet_quick_send("");
+    //RSP_FATAL("invalid memory access");
+  }
+  for(int i = 0; i < chunk_size; i++) {
+    rv32->mem[start + i] = rsp_hex_to_u8(buffer);
+    buffer += 2;
+  }
+  return rsp_packet_quick_send("");
 }
 
 #define len(x) (sizeof(x) - 1) /* For const char arrays only */
@@ -154,12 +229,14 @@ rsp_handler_result_t rsp_handle_packet(RV32 *rv32, uint8_t *buffer, size_t size)
     return rsp_packet_quick_send("S05");
   else if(isprefix(qAttached, buffer))
     return rsp_packet_quick_send("1");
-  else if(isprefix("g", buffer)) {
-    return rsp_send_registers(rv32);
-  }
-  else if(isprefix("G", buffer)) {
-    return rsp_receive_registers(rv32, buffer, size);
-  }
+  else if(isprefix("g", buffer))
+    return rsp_read_registers(rv32);
+  else if(isprefix("G", buffer))
+    return rsp_write_registers(rv32, buffer, size);
+  else if(isprefix("m", buffer))
+    return rsp_read_memory(rv32, buffer, size);
+  else if(isprefix("M", buffer))
+    return rsp_write_memory(rv32, buffer, size);
   else
     return rsp_packet_quick_send("");
 }
