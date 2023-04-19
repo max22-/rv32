@@ -6,7 +6,7 @@
 
 typedef struct {
   uint32_t mem_size;
-  uint8_t halted;
+  uint8_t running;
   uint32_t r[32], pc;
   uint8_t mem[1];
 } RV32;
@@ -56,6 +56,8 @@ typedef enum {
 } rv32_result_t;
 
 RV32 *rv32_new(uint32_t mem_size, void *(*calloc_func)(size_t, size_t));
+void rv32_pause(RV32 *rv32);
+void rv32_resume(RV32 *rv32);
 rv32_result_t rv32_cycle(RV32 *rv32);
 extern void ecall(RV32 *rv32);
 
@@ -154,6 +156,14 @@ RV32 *rv32_new(uint32_t mem_size, void *(*calloc_func)(size_t, size_t)) {
   return rv32;
 }
 
+void rv32_pause(RV32 *rv32) {
+  rv32->running = 0;
+}
+
+void rv32_resume(RV32 *rv32) {
+  rv32->running = 1;
+}
+
 rv32_result_t rv32_cycle(RV32 *rv32) {
   uint32_t instr, addr;
   uint8_t opcode, funct3, funct7;
@@ -161,6 +171,8 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
   uint16_t tmp16;
   uint32_t tmp32;
 
+  if(!rv32->running)
+    return RV32_PAUSED;
   if (rv32->pc >= rv32->mem_size)
     return RV32_INVALID_MEMORY_ACCESS;
   instr = LOAD32(rv32->pc);
@@ -531,6 +543,7 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       break;
     case 0x1: /* ebreak */
       trace("ebreak\n");
+      rv32_pause(rv32);
       return RV32_EBREAK;
     default:
       trace("invalid instruction\n");

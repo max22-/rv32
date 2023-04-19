@@ -10,7 +10,7 @@ void ecall(RV32 *rv32) {
     printf("%d\n", rv32->r[REG_A0]);
     break;
   case 93: /* exit */
-    rv32->halted = 1;
+    rv32_pause(rv32);
     break;
   default:
     break;

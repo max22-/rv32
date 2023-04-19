@@ -50,7 +50,8 @@ int main(int argc, char *argv[]) {
   }
   fclose(f);
 
-  while (!rv32->halted) {
+  rv32->running = 1;
+  while (rv32->running) {
     if ((res = rv32_cycle(rv32)) != RV32_OK) {
       if (res == RV32_EBREAK)
         fprintf(stderr, "ebreak at pc=%08x\n", rv32->pc);
