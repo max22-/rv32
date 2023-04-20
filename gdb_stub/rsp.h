@@ -5,6 +5,7 @@
 
 void rsp_handle_byte(RV32 *, char);
 enum rsp_signal {
+  RSP_SIGILL = 4,
   RSP_SIGTRAP = 5,
   RSP_SIGSEGV = 11
 };
@@ -341,6 +342,9 @@ void rsp_handle_byte(RV32 *rv32, char c) {
 
 void rsp_report_signal(enum rsp_signal signal) {
   switch(signal) {
+    case RSP_SIGILL:
+      rsp_packet_quick_send("S04");
+      break;
     case RSP_SIGTRAP:
       rsp_packet_quick_send("S05");
       break;

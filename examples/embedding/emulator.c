@@ -3,18 +3,18 @@
 #define RV32_IMPLEMENTATION
 #include "rv32.h"
 
-rv32_result_t mmio_load8(uint32_t addr, uint8_t *ret) { return RV32_INVALID_MEMORY_ACCESS; }
-rv32_result_t mmio_load16(uint32_t addr, uint16_t *ret) { return RV32_INVALID_MEMORY_ACCESS; }
-rv32_result_t mmio_load32(uint32_t addr, uint32_t *ret) { return RV32_INVALID_MEMORY_ACCESS; }
-rv32_result_t mmio_store8(uint32_t addr, uint8_t val) { 
+rv32_mmio_result_t mmio_load8(uint32_t addr, uint8_t *ret) { return RV32_MMIO_ERR; }
+rv32_mmio_result_t mmio_load16(uint32_t addr, uint16_t *ret) { return RV32_MMIO_ERR; }
+rv32_mmio_result_t mmio_load32(uint32_t addr, uint32_t *ret) { return RV32_MMIO_ERR; }
+rv32_mmio_result_t mmio_store8(uint32_t addr, uint8_t val) { 
   if(addr==0x80000000) { 
     printf("%c", val); 
-    return RV32_OK;
+    return RV32_MMIO_OK;
   }
-  return RV32_INVALID_MEMORY_ACCESS;
+  return RV32_MMIO_ERR;
 }
-rv32_result_t mmio_store16(uint32_t addr, uint16_t val) { return RV32_INVALID_MEMORY_ACCESS; }
-rv32_result_t mmio_store32(uint32_t addr, uint32_t val) { return RV32_INVALID_MEMORY_ACCESS; }
+rv32_mmio_result_t mmio_store16(uint32_t addr, uint16_t val) { return RV32_MMIO_ERR; }
+rv32_mmio_result_t mmio_store32(uint32_t addr, uint32_t val) { return RV32_MMIO_ERR; }
 
 int main(int argc, char *argv[]) {
   FILE *f;
@@ -22,7 +22,6 @@ int main(int argc, char *argv[]) {
   size_t fsize;
   const size_t memsize = 0x20000004; /* The tests write a byte at 0x20000000
                                         so the memory needs to be this big ! */
-  rv32_result_t res;
 
   if (argc < 2) {
     fprintf(stderr, "Please provide a program to run.\n");
@@ -50,16 +49,17 @@ int main(int argc, char *argv[]) {
   }
   fclose(f);
 
-  rv32->running = 1;
-  while (rv32->running) {
-    if ((res = rv32_cycle(rv32)) != RV32_OK) {
-      if (res == RV32_EBREAK)
+  while (rv32->status == RV32_RUNNING) {
+    rv32_cycle(rv32);
+    switch(rv32->status) {
+      case RV32_RUNNING:
+        break;
+      case RV32_EBREAK:
         fprintf(stderr, "ebreak at pc=%08x\n", rv32->pc);
-      else {
-        fprintf(stderr, "Error %d at pc=%08x\n", res, rv32->pc);
+        break;
+      default:
+        fprintf(stderr, "Error %d at pc=%08x\n", rv32->status, rv32->pc);
         fprintf(stderr, "instr = %08x\n", *(uint32_t *)&rv32->mem[rv32->pc]);
-      }
-      break;
     }
   }
   printf("exit status: %d\n", rv32->r[REG_A0]);

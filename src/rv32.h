@@ -4,9 +4,18 @@
 #include <stddef.h>
 #include <stdint.h>
 
+typedef enum {
+  RV32_RUNNING,
+  RV32_HALTED,
+  RV32_BREAKPOINT,
+  RV32_EBREAK,
+  RV32_INVALID_INSTRUCTION,
+  RV32_INVALID_MEMORY_ACCESS
+} rv32_status_t;
+
 typedef struct {
   uint32_t mem_size;
-  uint8_t running;
+  rv32_status_t status;
   uint8_t bp_mask; /* breakpoint enabled if bit enabled */
   uint32_t bp[8]; /* breakpoints */
   uint32_t r[32], pc;
@@ -49,20 +58,9 @@ enum rv32_register {
   REG_T6
 };
 
-typedef enum {
-  RV32_OK,
-  RV32_BREAKPOINT,
-  RV32_EBREAK,
-  RV32_INVALID_OPCODE,
-  RV32_INVALID_INSTRUCTION,
-  RV32_INVALID_MEMORY_ACCESS,
-  RV32_PAUSED
-} rv32_result_t;
-
 RV32 *rv32_new(uint32_t mem_size, void *(*calloc_func)(size_t, size_t));
-void rv32_pause(RV32 *rv32);
 void rv32_resume(RV32 *rv32);
-rv32_result_t rv32_cycle(RV32 *rv32);
+void rv32_cycle(RV32 *rv32);
 int rv32_set_breakpoint(RV32*, uint32_t addr);
 int rv32_clear_breakpoint(RV32*, uint32_t addr);
 extern void ecall(RV32 *rv32);
@@ -141,15 +139,20 @@ extern void ecall(RV32 *rv32);
 #error "Please define LITTLE_ENDIAN_HOST or BIG_ENDIAN_HOST macro"
 #endif
 
-/* Should return RV32_OK, or RV32_INVALID_MEMORY_ACCESS */
-rv32_result_t mmio_load8(uint32_t addr, uint8_t *ret);
-rv32_result_t mmio_load16(uint32_t addr, uint16_t *ret);
-rv32_result_t mmio_load32(uint32_t addr, uint32_t *ret);
+typedef enum {
+  RV32_MMIO_OK,
+  RV32_MMIO_ERR
+} rv32_mmio_result_t;
 
 /* Should return RV32_OK, or RV32_INVALID_MEMORY_ACCESS */
-rv32_result_t mmio_store8(uint32_t addr, uint8_t val);
-rv32_result_t mmio_store16(uint32_t addr, uint16_t val);
-rv32_result_t mmio_store32(uint32_t addr, uint32_t val);
+rv32_mmio_result_t mmio_load8(uint32_t addr, uint8_t *ret);
+rv32_mmio_result_t mmio_load16(uint32_t addr, uint16_t *ret);
+rv32_mmio_result_t mmio_load32(uint32_t addr, uint32_t *ret);
+
+/* Should return RV32_OK, or RV32_INVALID_MEMORY_ACCESS */
+rv32_mmio_result_t mmio_store8(uint32_t addr, uint8_t val);
+rv32_mmio_result_t mmio_store16(uint32_t addr, uint16_t val);
+rv32_mmio_result_t mmio_store32(uint32_t addr, uint32_t val);
 
 const char *rname[] = {"zero", "ra", "sp",  "gp",  "tp", "t0", "t1", "t2",
                        "s0",   "s1", "a0",  "a1",  "a2", "a3", "a4", "a5",
@@ -162,15 +165,12 @@ RV32 *rv32_new(uint32_t mem_size, void *(*calloc_func)(size_t, size_t)) {
   return rv32;
 }
 
-void rv32_pause(RV32 *rv32) {
-  rv32->running = 0;
-}
-
 void rv32_resume(RV32 *rv32) {
-  rv32->running = 1;
+  if(rv32->status == RV32_BREAKPOINT)
+    rv32->status = RV32_RUNNING;
 }
 
-rv32_result_t rv32_cycle(RV32 *rv32) {
+void rv32_cycle(RV32 *rv32) {
   uint32_t instr, addr;
   uint8_t opcode, funct3, funct7;
   uint8_t tmp8;
@@ -178,15 +178,17 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
   uint32_t tmp32;
   int i;
 
-  if(!rv32->running)
-    return RV32_PAUSED;
-  if (rv32->pc >= rv32->mem_size)
-    return RV32_INVALID_MEMORY_ACCESS;
+  if(rv32->status != RV32_RUNNING)
+    return;
+  if (rv32->pc >= rv32->mem_size) {
+    rv32->status = RV32_INVALID_MEMORY_ACCESS;
+    return;
+  }
   else if(rv32->bp_mask) {
     for(i = 0; i < 8; i++) {
       if(rv32->bp_mask & (1<<i) && rv32->pc == rv32->bp[i]) {
-        rv32_pause(rv32);
-        return RV32_BREAKPOINT; /* TODO: is this constant redundant with RV32_PAUSED ? */
+        rv32->status = RV32_BREAKPOINT;
+        return;
       }
     }
   }
@@ -265,7 +267,8 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       }
       default:
         trace("invalid instruction\n");
-        return RV32_INVALID_INSTRUCTION;
+        rv32->status = RV32_INVALID_INSTRUCTION;
+        return;
         break;
       }
     } else {
@@ -279,8 +282,10 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
           trace("sub %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
           rv32->r[RD] = rv32->r[RS1] - rv32->r[RS2];
         }
-        else
-          return RV32_INVALID_INSTRUCTION;
+        else {
+          rv32->status = RV32_INVALID_INSTRUCTION;
+          return;
+        }
         break;
       case 0x4: /* xor */
         trace("xor %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
@@ -309,7 +314,8 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
         }
         else {
           trace("invalid instruction\n");
-          return RV32_INVALID_INSTRUCTION;
+          rv32->status = RV32_INVALID_INSTRUCTION;
+          return;
         }
         break;
       case 0x2: /* slt */
@@ -322,7 +328,8 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
         break;
       default: {
         trace("invalid instruction\n");
-        return RV32_INVALID_INSTRUCTION;
+        rv32->status = RV32_INVALID_INSTRUCTION;
+        return;
       }
       }
     }
@@ -361,7 +368,8 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
         rv32->r[RD] = (int32_t)rv32->r[RS1] >> (IMM_I & 0x1f);
       } else {
         trace("invalid instruction\n");
-        return RV32_INVALID_INSTRUCTION;
+        rv32->status = RV32_INVALID_INSTRUCTION;
+        return;
       }
       break;
     case 0x2: /* slti */
@@ -374,7 +382,8 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       break;
     default:
       trace("invalid instruction\n");
-      return RV32_INVALID_INSTRUCTION;
+      rv32->status = RV32_INVALID_INSTRUCTION;
+      return;
     }
     rv32->pc += 4;
     break;
@@ -385,8 +394,10 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     case 0x0: /* lb */
       trace("lb %s, %d(%s)\n", rname[RD], SEXT_IMM_I, rname[RS1]);
       if (addr >= rv32->mem_size) {
-        if(mmio_load8(addr, &tmp8) != RV32_OK)
-          return RV32_INVALID_MEMORY_ACCESS;
+        if(mmio_load8(addr, &tmp8) != RV32_MMIO_OK) {
+          rv32->status = RV32_INVALID_MEMORY_ACCESS;
+          return;
+        }
         rv32->r[RD] = SEXT(tmp8, 8);
       } else {
         rv32->r[RD] = SEXT(LOAD8(addr), 8);
@@ -395,8 +406,10 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     case 0x1: /* lh */
       trace("lh %s, %d(%s)\n", rname[RD], SEXT_IMM_I, rname[RS1]);
       if (addr >= rv32->mem_size - 1) {
-        if(mmio_load16(addr, &tmp16) != RV32_OK)
-          return RV32_INVALID_MEMORY_ACCESS;
+        if(mmio_load16(addr, &tmp16) != RV32_MMIO_OK) {
+          rv32->status = RV32_INVALID_MEMORY_ACCESS;
+          return;
+        }
         rv32->r[RD] = SEXT(tmp16, 16);
       } else {
         rv32->r[RD] = SEXT(LOAD16(addr), 16);
@@ -405,8 +418,10 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     case 0x2: /* lw */
       trace("lw %s, %d(%s)\n", rname[RD], SEXT_IMM_I, rname[RS1]);
       if (addr >= rv32->mem_size - 3) {
-        if(mmio_load32(addr, &tmp32) != RV32_OK)
-          return RV32_INVALID_MEMORY_ACCESS;
+        if(mmio_load32(addr, &tmp32) != RV32_MMIO_OK) {
+          rv32->status = RV32_INVALID_MEMORY_ACCESS;
+          return;
+        }
         rv32->r[RD] = tmp32;
       } else {
         rv32->r[RD] = LOAD32(addr);
@@ -415,8 +430,10 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     case 0x4: /* lbu */
       trace("lbu %s, %d(%s)\n", rname[RD], SEXT_IMM_I, rname[RS1]);
       if (addr >= rv32->mem_size) {
-        if(mmio_load8(addr, &tmp8) != RV32_OK)
-          return RV32_INVALID_MEMORY_ACCESS;
+        if(mmio_load8(addr, &tmp8) != RV32_MMIO_OK) {
+          rv32->status = RV32_INVALID_MEMORY_ACCESS;
+          return;
+        }
         rv32->r[RD] = tmp8;
       } else {
         rv32->r[RD] = LOAD8(addr);
@@ -425,8 +442,10 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     case 0x5: /* lhu */
       trace("lhu %s, %d(%s)\n", rname[RD], SEXT_IMM_I, rname[RS1]);
       if (addr >= rv32->mem_size - 1) {
-        if(mmio_load16(addr, &tmp16) != RV32_OK)
-          return RV32_INVALID_MEMORY_ACCESS;
+        if(mmio_load16(addr, &tmp16) != RV32_MMIO_OK) {
+          rv32->status = RV32_INVALID_MEMORY_ACCESS;
+          return;
+        }
         rv32->r[RD] = tmp16;
       } else {
         rv32->r[RD] = LOAD16(addr);
@@ -434,7 +453,8 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       break;
     default:
       trace("invalid instruction\n");
-      return RV32_INVALID_INSTRUCTION;
+      rv32->status = RV32_INVALID_INSTRUCTION;
+      return;
     }
     rv32->pc += 4;
     break;
@@ -445,8 +465,10 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     case 0x0: /* sb */
       trace("sb %s, %d(%s)\n", rname[RD], SEXT_IMM_I, rname[RS1]);
       if (addr >= rv32->mem_size) {
-        if(mmio_store8(addr, rv32->r[RS2] & 0xff) != RV32_OK)
-          return RV32_INVALID_MEMORY_ACCESS;
+        if(mmio_store8(addr, rv32->r[RS2] & 0xff) != RV32_MMIO_OK) {
+          rv32->status = RV32_INVALID_MEMORY_ACCESS;
+          return;
+        }
       } else {
         STORE8(addr, rv32->r[RS2] & 0xff);
       }
@@ -454,8 +476,10 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     case 0x1: /* sh */
       trace("sh %s, %d(%s)\n", rname[RD], SEXT_IMM_I, rname[RS1]);
       if (addr >= rv32->mem_size) {
-        if(mmio_store16(addr, rv32->r[RS2] & 0xffff) != RV32_OK)
-          return RV32_INVALID_MEMORY_ACCESS;
+        if(mmio_store16(addr, rv32->r[RS2] & 0xffff) != RV32_MMIO_OK) {
+          rv32->status = RV32_INVALID_MEMORY_ACCESS;
+          return;
+        }
       } else {
         STORE16(addr, rv32->r[RS2] & 0xffff);
       }
@@ -463,15 +487,18 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     case 0x2: /* sw */
       trace("sw %s, %d(%s)\n", rname[RD], SEXT_IMM_I, rname[RS1]);
       if (addr >= rv32->mem_size - 3) {
-        if(mmio_store32(addr, rv32->r[RS2]) != RV32_OK)
-          return RV32_INVALID_MEMORY_ACCESS;
+        if(mmio_store32(addr, rv32->r[RS2]) != RV32_MMIO_OK) {
+          rv32->status = RV32_INVALID_MEMORY_ACCESS;
+          return;
+        }
       } else {
         STORE32(addr, rv32->r[RS2]);
       }
       break;
     default:
       trace("invalid instruction\n");
-      return RV32_INVALID_INSTRUCTION;
+      rv32->status = RV32_INVALID_INSTRUCTION;
+      return;
     }
     rv32->pc += 4;
     break;
@@ -522,7 +549,8 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
       break;
     default:
       trace("invalid instruction\n");
-      return RV32_INVALID_INSTRUCTION;
+      rv32->status = RV32_INVALID_INSTRUCTION;
+      return;
     }
     break;
 
@@ -555,22 +583,25 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     case 0x0: /* ecall */
       trace("ecall %d\n", rv32->r[17]);
       ecall(rv32);
+      if(rv32->status != RV32_RUNNING)
+        return;
       break;
     case 0x1: /* ebreak */
       trace("ebreak\n");
-      rv32_pause(rv32);
-      return RV32_EBREAK;
+      rv32->status = RV32_EBREAK;
+      return;
     default:
       trace("invalid instruction\n");
-      return RV32_INVALID_INSTRUCTION;
+      rv32->status = RV32_INVALID_INSTRUCTION;
+      return;
     }
     rv32->pc += 4;
     break;
   default:
     trace("invalid opcode\n");
-    return RV32_INVALID_OPCODE;
+    rv32->status = RV32_INVALID_INSTRUCTION;
+    return ;
   }
-  return RV32_OK;
 }
 
 int rv32_set_breakpoint(RV32 *rv32, uint32_t addr) {
