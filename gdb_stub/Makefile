@@ -2,7 +2,7 @@ CFLAGS = -std=c99 -pedantic -Wall -I../src -DLITTLE_ENDIAN_HOST
 
 all: stub
 
-stub: main.c rsp.h
+stub: main.c rsp.h ../src/rv32.h
 	$(CC) $(CFLAGS) $< -o $@
 
 .PHONY: run clean
