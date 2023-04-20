@@ -7,6 +7,8 @@
 typedef struct {
   uint32_t mem_size;
   uint8_t running;
+  uint8_t bp_mask; /* breakpoint enabled if bit enabled */
+  uint32_t bp[8]; /* breakpoints */
   uint32_t r[32], pc;
   uint8_t mem[1];
 } RV32;
@@ -49,6 +51,7 @@ enum rv32_register {
 
 typedef enum {
   RV32_OK,
+  RV32_BREAKPOINT,
   RV32_EBREAK,
   RV32_INVALID_OPCODE,
   RV32_INVALID_INSTRUCTION,
@@ -59,6 +62,8 @@ RV32 *rv32_new(uint32_t mem_size, void *(*calloc_func)(size_t, size_t));
 void rv32_pause(RV32 *rv32);
 void rv32_resume(RV32 *rv32);
 rv32_result_t rv32_cycle(RV32 *rv32);
+int rv32_set_breakpoint(RV32*, uint32_t addr);
+int rv32_clear_breakpoint(RV32*, uint32_t addr);
 extern void ecall(RV32 *rv32);
 
 #ifdef RV32_IMPLEMENTATION
@@ -170,11 +175,20 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
   uint8_t tmp8;
   uint16_t tmp16;
   uint32_t tmp32;
+  int i;
 
   if(!rv32->running)
     return RV32_PAUSED;
   if (rv32->pc >= rv32->mem_size)
     return RV32_INVALID_MEMORY_ACCESS;
+  else if(rv32->bp_mask) {
+    for(i = 0; i < 8; i++) {
+      if(rv32->bp_mask & (1<<i) && rv32->pc == rv32->bp[i]) {
+        rv32_pause(rv32);
+        return RV32_BREAKPOINT; /* TODO: is this constant redundant with RV32_PAUSED ? */
+      }
+    }
+  }
   instr = LOAD32(rv32->pc);
   opcode = instr & 0x7f;
   funct3 = (instr >> 12) & 0x7;
@@ -556,6 +570,30 @@ rv32_result_t rv32_cycle(RV32 *rv32) {
     return RV32_INVALID_OPCODE;
   }
   return RV32_OK;
+}
+
+int rv32_set_breakpoint(RV32 *rv32, uint32_t addr) {
+  int i;
+  for(i = 0; i < 8; i++) {
+    if((rv32->bp_mask & (1 << i)) == 0) {
+      rv32->bp_mask |= (1 << i);
+      rv32->bp[i] = addr;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+int rv32_clear_breakpoint(RV32 *rv32, uint32_t addr) {
+  int i;
+  for(i = 0; i < 8; i++) {
+    if((rv32->bp_mask & (1 << i)) && rv32->bp[i] == addr) {
+      rv32->bp_mask &= ~(1<<i);
+      rv32->bp[i] = 0;
+      return 1;
+    }
+  }
+  return 0;
 }
 
 #endif /* RV32_IMPLEMENTATION */
