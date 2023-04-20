@@ -37,7 +37,7 @@ bin/c_program.bin: bin/c_program.elf
 
 bin/c_program.elf: examples/c/c_program.c build/crt0.o
 	mkdir -p bin
-	riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -nostartfiles -nostdlib -Wl,-T,examples/c/linker_script.ld $< -o $@
+	riscv64-unknown-elf-gcc -g -march=rv32im -mabi=ilp32 -nostartfiles -nostdlib -Wl,-T,examples/c/linker_script.ld $< -o $@
 
 build/crt0.o: examples/c/crt0.s
 	mkdir -p build
