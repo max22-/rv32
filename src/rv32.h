@@ -71,7 +71,7 @@ extern void ecall(RV32 *rv32);
 #ifdef TRACE
 #include <stdio.h>
 #include <stdlib.h>
-#define trace(...) printf(__VA_ARGS__)
+#define trace(...) fprintf(stderr, __VA_ARGS__)
 #else
 #define trace(...)
 #endif
