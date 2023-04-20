@@ -144,12 +144,10 @@ typedef enum {
   RV32_MMIO_ERR
 } rv32_mmio_result_t;
 
-/* Should return RV32_OK, or RV32_INVALID_MEMORY_ACCESS */
 rv32_mmio_result_t mmio_load8(uint32_t addr, uint8_t *ret);
 rv32_mmio_result_t mmio_load16(uint32_t addr, uint16_t *ret);
 rv32_mmio_result_t mmio_load32(uint32_t addr, uint32_t *ret);
 
-/* Should return RV32_OK, or RV32_INVALID_MEMORY_ACCESS */
 rv32_mmio_result_t mmio_store8(uint32_t addr, uint8_t val);
 rv32_mmio_result_t mmio_store16(uint32_t addr, uint16_t val);
 rv32_mmio_result_t mmio_store32(uint32_t addr, uint32_t val);
