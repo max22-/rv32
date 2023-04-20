@@ -55,7 +55,8 @@ typedef enum {
   RV32_EBREAK,
   RV32_INVALID_OPCODE,
   RV32_INVALID_INSTRUCTION,
-  RV32_INVALID_MEMORY_ACCESS
+  RV32_INVALID_MEMORY_ACCESS,
+  RV32_PAUSED
 } rv32_result_t;
 
 RV32 *rv32_new(uint32_t mem_size, void *(*calloc_func)(size_t, size_t));

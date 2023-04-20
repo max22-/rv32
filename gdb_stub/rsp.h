@@ -2,7 +2,13 @@
 #define INCLUDE_RSP_H
 
 #include "rv32.h"
+
 void rsp_handle_byte(RV32 *, char);
+enum rsp_signal {
+  RSP_SIGTRAP = 5,
+  RSP_SIGSEGV = 11
+};
+void rsp_report_signal(enum rsp_signal);
 
 #if defined(RSP_IMPLEMENTATION)
 
@@ -181,7 +187,6 @@ rsp_handler_result_t rsp_read_memory(RV32 *rv32, uint8_t *buffer, size_t size) {
   return rsp_packet_send(&p);
 }
 
-/* $M0,4:00010203#9d */
 rsp_handler_result_t rsp_write_memory(RV32 *rv32, uint8_t *buffer, size_t size) {
   uint32_t start = 0, chunk_size = 0;
 
@@ -217,6 +222,49 @@ rsp_handler_result_t rsp_write_memory(RV32 *rv32, uint8_t *buffer, size_t size) 
   return rsp_packet_quick_send("");
 }
 
+rsp_handler_result_t rsp_set_software_breakpoint(RV32* rv32, uint8_t *buffer, size_t size) {
+  uint32_t addr = 0;
+  buffer+=2; size -= 2;
+  if(!size || buffer[0] != ',') RSP_FATAL("invalid 'Z0' message from GDB");
+  buffer++; size--;
+  while(rsp_is_hex_digit(buffer[0]) && size) {
+    addr <<= 4;
+    addr |= rsp_from_hex_digit(buffer[0]);
+    buffer++; size--;
+  }
+  if(buffer[0] != ',')
+    RSP_FATAL("invalid 'Z0' message from gdb");
+  if(rv32_set_breakpoint(rv32, addr))
+    return rsp_packet_quick_send("OK");
+  else
+    return rsp_packet_quick_send("");
+}
+
+/* TODO: factorize set and clear */
+rsp_handler_result_t rsp_clear_software_breakpoint(RV32* rv32, uint8_t *buffer, size_t size) {
+  uint32_t addr = 0;
+  buffer+=2; size -= 2;
+  if(!size || buffer[0] != ',') RSP_FATAL("invalid 'Z0' message from GDB");
+  buffer++; size--;
+  while(rsp_is_hex_digit(buffer[0]) && size) {
+    addr <<= 4;
+    addr |= rsp_from_hex_digit(buffer[0]);
+    buffer++; size--;
+  }
+  if(buffer[0] != ',')
+    RSP_FATAL("invalid 'Z0' message from gdb");
+  if(rv32_clear_breakpoint(rv32, addr))
+    return rsp_packet_quick_send("OK");
+  else
+    return rsp_packet_quick_send("");
+}
+
+rsp_handler_result_t rsp_continue(RV32* rv32) {
+  rv32_resume(rv32);
+  return RSP_NO_PACKET_SENT;
+}
+
+
 #define len(x) (sizeof(x) - 1) /* For const char arrays only */
 #define isprefix(s1, s2) (size >= len(s1) && !strncmp(s1, (const char*)s2, len(s1)))
 rsp_handler_result_t rsp_handle_packet(RV32 *rv32, uint8_t *buffer, size_t size) {
@@ -237,6 +285,12 @@ rsp_handler_result_t rsp_handle_packet(RV32 *rv32, uint8_t *buffer, size_t size)
     return rsp_read_memory(rv32, buffer, size);
   else if(isprefix("M", buffer))
     return rsp_write_memory(rv32, buffer, size);
+  else if(isprefix("Z0", buffer))
+    return rsp_set_software_breakpoint(rv32, buffer, size);
+  else if(isprefix("z0", buffer))
+    return rsp_clear_software_breakpoint(rv32, buffer, size);
+  else if(isprefix("c", buffer))
+    return rsp_continue(rv32);
   else
     return rsp_packet_quick_send("");
 }
@@ -283,6 +337,19 @@ void rsp_handle_byte(RV32 *rv32, char c) {
         RSP_FATAL("gdb didn't acknowledge last packet"); /* TODO: implement re-send */
       break;
     }
+}
+
+void rsp_report_signal(enum rsp_signal signal) {
+  switch(signal) {
+    case RSP_SIGTRAP:
+      rsp_packet_quick_send("S05");
+      break;
+    case RSP_SIGSEGV:
+      rsp_packet_quick_send("S0b");
+      break;
+    default:
+      RSP_FATAL("unknown signal");
+  }
 }
 
 #endif /* RSP_IMPLEMENTATION */
