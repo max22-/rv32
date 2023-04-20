@@ -60,7 +60,6 @@ int main(int argc, char *argv[])
     }
     if(rv32->status == RV32_RUNNING) {
       rv32_cycle(rv32);
-      fprintf(stderr, "status = %d\n", rv32->status);
       switch(rv32->status) {
         case RV32_RUNNING: /* do nothing */
           break;

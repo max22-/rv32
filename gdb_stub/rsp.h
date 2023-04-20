@@ -3,13 +3,16 @@
 
 #include "rv32.h"
 
-void rsp_handle_byte(RV32 *, char);
 enum rsp_signal {
+  RSP_SIGINT = 2,
   RSP_SIGILL = 4,
   RSP_SIGTRAP = 5,
   RSP_SIGSEGV = 11
 };
+
 void rsp_report_signal(enum rsp_signal);
+void rsp_handle_byte(RV32 *, char);
+
 
 #if defined(RSP_IMPLEMENTATION)
 
@@ -296,6 +299,25 @@ rsp_handler_result_t rsp_handle_packet(RV32 *rv32, uint8_t *buffer, size_t size)
     return rsp_packet_quick_send("");
 }
 
+void rsp_report_signal(enum rsp_signal signal) {
+  switch(signal) { /* TODO: refactor that... */
+    case RSP_SIGINT:
+      rsp_packet_quick_send("S02");
+      break;
+    case RSP_SIGILL:
+      rsp_packet_quick_send("S04");
+      break;
+    case RSP_SIGTRAP:
+      rsp_packet_quick_send("S05");
+      break;
+    case RSP_SIGSEGV:
+      rsp_packet_quick_send("S0b");
+      break;
+    default:
+      RSP_FATAL("unknown signal");
+  }
+}
+
 void rsp_handle_byte(RV32 *rv32, char c) {
   static uint8_t in_buffer[RSP_BUFFER_SIZE], sum1, sum2;
   static size_t iptr;
@@ -307,6 +329,10 @@ void rsp_handle_byte(RV32 *rv32, char c) {
       iptr = 0;
       sum1 = sum2 = 0;
       if(c == '$') state = RSP_PACKET_DATA;
+      else if(c == 3) {
+        rv32->status = RV32_BREAKPOINT;
+        rsp_report_signal(RSP_SIGINT);
+      }
       break;
     case RSP_PACKET_DATA:
       if(c == '#') state = RSP_CHECKSUM_1;
@@ -338,22 +364,6 @@ void rsp_handle_byte(RV32 *rv32, char c) {
         RSP_FATAL("gdb didn't acknowledge last packet"); /* TODO: implement re-send */
       break;
     }
-}
-
-void rsp_report_signal(enum rsp_signal signal) {
-  switch(signal) {
-    case RSP_SIGILL:
-      rsp_packet_quick_send("S04");
-      break;
-    case RSP_SIGTRAP:
-      rsp_packet_quick_send("S05");
-      break;
-    case RSP_SIGSEGV:
-      rsp_packet_quick_send("S0b");
-      break;
-    default:
-      RSP_FATAL("unknown signal");
-  }
 }
 
 #endif /* RSP_IMPLEMENTATION */
