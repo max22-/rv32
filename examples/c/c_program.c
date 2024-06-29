@@ -30,5 +30,6 @@ int main()
   x = 15;
   y = 5;
   print_int(x/y);
+  //while(1);
   return 45;
 }

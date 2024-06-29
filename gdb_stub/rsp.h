@@ -19,6 +19,14 @@ void rsp_handle_byte(RV32 *, char);
 #include <string.h>
 #include <stdint.h>
 
+#if !defined(RSP_SEND)
+#include <stdio.h>
+#define RSP_SEND(x) \
+  do {\
+    printf("%s", x); \
+    fflush(stdout); \
+  } while(0)
+#endif
 
 #if !defined(RSP_FATAL)
 #include <stdio.h>
@@ -123,8 +131,7 @@ void rsp_packet_end(rsp_packet_t *p) {
 }
 
 rsp_handler_result_t rsp_packet_send(rsp_packet_t *p) {
-  printf("%s", p->buffer);
-  fflush(stdout);
+  RSP_SEND(p->buffer);
   return RSP_PACKET_SENT;
 }
 
@@ -349,9 +356,9 @@ void rsp_handle_byte(RV32 *rv32, char c) {
     case RSP_CHECKSUM_2:
       sum2 |= rsp_from_hex_digit(c);
       if(sum1 == sum2) {
-        printf("+");
+        RSP_SEND("+");
         handler_result = rsp_handle_packet(rv32, in_buffer, iptr);
-      } else printf("-");
+      } else RSP_SEND("-");
       fflush(stdout);
       if(handler_result == RSP_PACKET_SENT)
         state = RSP_WAIT_ACK;
