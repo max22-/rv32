@@ -20,8 +20,9 @@ int main(int argc, char *argv[]) {
   FILE *f;
   RV32 *rv32;
   size_t fsize;
-  const size_t memsize = 0x20000004; /* The tests write a byte at 0x20000000
+  const size_t ram_size = 0x20000004; /* The tests write a byte at 0x20000000
                                         so the memory needs to be this big ! */
+  uint8_t *memory = NULL;
 
   if (argc < 2) {
     fprintf(stderr, "Please provide a program to run.\n");
@@ -32,14 +33,15 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Failed to open program %s\n", argv[1]);
     return 1;
   }
-  rv32 = rv32_new(memsize, calloc);
-  if (!rv32) {
-    fprintf(stderr, "Not enough memory\n");
+  memory = (uint8_t*)malloc(RV32_NEEDED_MEMORY(ram_size));
+  if(!memory) {
+    fprintf(stderr, "Failed to allocate memory.\n");
     return 1;
   }
+  rv32 = rv32_new(memory, ram_size);
   fseek(f, 0, SEEK_END);
   fsize = ftell(f);
-  if (fsize > memsize) {
+  if (fsize > ram_size) {
     fprintf(stderr, "Program too big.\n");
   }
   fseek(f, 0, SEEK_SET);
@@ -64,6 +66,6 @@ int main(int argc, char *argv[]) {
   }
   printf("exit status: %d\n", rv32->r[REG_A0]);
   printf("\n");
-  free(rv32);
+  free(memory);
   return 0;
 }
