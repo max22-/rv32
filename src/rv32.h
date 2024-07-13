@@ -58,12 +58,28 @@ enum rv32_register {
   REG_T6
 };
 
-RV32 *rv32_new(uint32_t mem_size, void *(*calloc_func)(size_t, size_t));
+/* Gives the amount of memory needed for the RAM + the struct */
+#define RV32_NEEDED_MEMORY(bytes) (sizeof(RV32) + bytes)
+
+RV32 *rv32_new(void *memory, uint32_t mem_size);
 void rv32_resume(RV32 *rv32);
 void rv32_cycle(RV32 *rv32);
 int rv32_set_breakpoint(RV32*, uint32_t addr);
 int rv32_clear_breakpoint(RV32*, uint32_t addr);
 extern void ecall(RV32 *rv32);
+
+typedef enum {
+  RV32_MMIO_OK,
+  RV32_MMIO_ERR
+} rv32_mmio_result_t;
+
+rv32_mmio_result_t mmio_load8(uint32_t addr, uint8_t *ret);
+rv32_mmio_result_t mmio_load16(uint32_t addr, uint16_t *ret);
+rv32_mmio_result_t mmio_load32(uint32_t addr, uint32_t *ret);
+
+rv32_mmio_result_t mmio_store8(uint32_t addr, uint8_t val);
+rv32_mmio_result_t mmio_store16(uint32_t addr, uint16_t val);
+rv32_mmio_result_t mmio_store32(uint32_t addr, uint32_t val);
 
 #ifdef RV32_IMPLEMENTATION
 
@@ -139,26 +155,13 @@ extern void ecall(RV32 *rv32);
 #error "Please define LITTLE_ENDIAN_HOST or BIG_ENDIAN_HOST macro"
 #endif
 
-typedef enum {
-  RV32_MMIO_OK,
-  RV32_MMIO_ERR
-} rv32_mmio_result_t;
-
-rv32_mmio_result_t mmio_load8(uint32_t addr, uint8_t *ret);
-rv32_mmio_result_t mmio_load16(uint32_t addr, uint16_t *ret);
-rv32_mmio_result_t mmio_load32(uint32_t addr, uint32_t *ret);
-
-rv32_mmio_result_t mmio_store8(uint32_t addr, uint8_t val);
-rv32_mmio_result_t mmio_store16(uint32_t addr, uint16_t val);
-rv32_mmio_result_t mmio_store32(uint32_t addr, uint32_t val);
-
 const char *rname[] = {"zero", "ra", "sp",  "gp",  "tp", "t0", "t1", "t2",
                        "s0",   "s1", "a0",  "a1",  "a2", "a3", "a4", "a5",
                        "a6",   "a7", "s2",  "s3",  "s4", "s5", "s6", "s7",
                        "s8",   "s9", "s10", "s11", "t3", "t4", "t5", "t6"};
 
-RV32 *rv32_new(uint32_t mem_size, void *(*calloc_func)(size_t, size_t)) {
-  RV32 *rv32 = (RV32 *)calloc_func(1, sizeof(RV32) + mem_size);
+RV32 *rv32_new(void *memory, uint32_t mem_size) {
+  RV32 *rv32 = (RV32 *)memory;
   rv32->mem_size = mem_size;
   return rv32;
 }

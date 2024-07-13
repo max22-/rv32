@@ -1,12 +1,18 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <SDL.h>
-#include "vm.h"
+#include <time.h>
+#define RV32_IMPLEMENTATION
+#define FANTASY_COMPUTER_IMPLEMENTATION
+#include "fantasy_computer.h"
 #include "shared.h"
 #include "macros.h"
 
-uint16_t *pixels = NULL;
 bool render = false;
+uint16_t *pixels = NULL;
+
+const unsigned int FPS = 60;
+const size_t ram_size = 0x10000; /* 64k */
 
 int main(int argc, char *argv[]) {
     int res = 0;
@@ -14,6 +20,46 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "usage: %s file.bin\n", argv[0]);
         return 1;
     }
+
+    const char *file_path = argv[1];
+    uint8_t *memory = (uint8_t*)malloc(RV32_NEEDED_MEMORY(ram_size));
+    if(!memory) {
+        ERROR("failed to allocate memory");
+        return 1;
+    }
+
+    RV32 *rv32 = rv32_new(memory, ram_size);
+    if(!rv32) {
+        ERROR("failed to create VM (not enough memory)");
+        return 0;
+    }
+
+    FILE *f = fopen(file_path, "r");
+    if(!f) {
+        ERROR("failed to open %s", file_path);
+        return 0;
+    }
+
+    fseek(f, 0, SEEK_END);
+    size_t file_size = ftell(f);
+
+    if(file_size > ram_size) {
+        free(rv32);
+        fclose(f);
+        ERROR("program too big");
+        return 0;
+    }
+
+    fseek(f, 0, SEEK_SET);
+    size_t n = fread(rv32->mem, file_size, 1, f);
+    fclose(f);
+
+    if(n != 1) {
+        free(rv32);
+        ERROR("failed to read program");
+        return 0;
+    }
+
     if(SDL_Init(SDL_INIT_VIDEO) < 0) {
         ERROR("failed to initialize SDL : %s", SDL_GetError());
         return 1;
@@ -37,22 +83,21 @@ int main(int argc, char *argv[]) {
         res = 1;
         goto cleanup3;
     }
+
     pixels = (uint16_t*)malloc(sizeof(uint16_t) * SCREEN_WIDTH * SCREEN_HEIGHT);
     if(!pixels) {
         ERROR("failed to allocate pixels memory");
         res = 1;
         goto cleanup4;
     }
+
     SDL_UpdateTexture(texture, NULL, pixels, sizeof(uint16_t));
-    if(!vm_start(argv[1])) {
-        ERROR("%s", vm_get_error());
-        res = 1;
-        goto cleanup5;
-        return 1;
-    }
     
     bool quit = false;
+    float frequency = SDL_GetPerformanceFrequency();
     while(!quit) {
+        clock_t now = clock();
+        uint64_t t_start = SDL_GetPerformanceCounter();
         SDL_Event e;
         while(SDL_PollEvent(&e)) {
             if(e.type == SDL_QUIT)
@@ -73,10 +118,29 @@ int main(int argc, char *argv[]) {
         }
         SDL_RenderCopy(renderer, texture, NULL, NULL);
         SDL_RenderPresent(renderer);
-        SDL_Delay(16);
+        do {
+            rv32_cycle(rv32);
+            switch(rv32->status) {
+            case RV32_RUNNING:
+                break;
+            case RV32_HALTED:
+                quit = true;
+                printf("cpu halted.\n");
+                printf("exit status: %d\n", rv32->r[REG_A0]);
+                goto considered_harmful;
+                break;
+            case RV32_EBREAK:
+                fprintf(stderr, "ebreak at pc=%08x\n", rv32->pc);
+                break;
+            default:
+                fprintf(stderr, "Error %d at pc=%08x\n", rv32->status, rv32->pc);
+                fprintf(stderr, "instr = %08x\n", *(uint32_t *)&rv32->mem[rv32->pc]);
+            }
+        } while((SDL_GetPerformanceCounter() - t_start) / frequency < 1 / (float)FPS);
+        considered_harmful:
+        printf("%ld\n", clock() - now);
     }
 
-cleanup5:
     free(pixels);
 cleanup4:
     SDL_DestroyTexture(texture);
@@ -86,5 +150,6 @@ cleanup2:
     SDL_DestroyWindow(window);
 cleanup1:
     SDL_Quit();
+    free(rv32);
     return res;
 }
