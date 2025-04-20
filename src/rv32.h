@@ -19,6 +19,16 @@ typedef struct {
   uint8_t bp_mask; /* breakpoint enabled if bit enabled */
   uint32_t bp[8]; /* breakpoints */
   uint32_t r[32], pc;
+  /* CSR */
+  uint32_t 
+    mstatus,  /* machine status (contains the MIE bit (Machine Interrupt Enable)) */
+    mie,  /* machine interrupt enable register (which type of interrupts are enabled) */
+    mip, /* machine interrupt pending register */
+    mtvec, /* machine trap-handler base address */
+    mepc, /* machine exception program counter */
+    mcause; /* machine trap cause*/
+  /* *** */
+  uint8_t wfi; /* wait for interrupt */
   uint8_t mem[1];
 } RV32;
 
@@ -155,6 +165,37 @@ rv32_mmio_result_t mmio_store32(uint32_t addr, uint32_t val);
 #error "Please define LITTLE_ENDIAN_HOST or BIG_ENDIAN_HOST macro"
 #endif
 
+/* CSR stuff **************************************************************** */
+
+#define CSR_CLEAR_BIT(csr, bit) do { (csr) &= ~(1<< (bit)); } while(0)
+#define CSR_SET_BIT(csr, bit, val) do { (csr) = ((csr) & ~(1 << bit)) | ((!!val) << bit); } while(0)
+#define CSR_GET_BIT(csr, bit) ((csr) >> (bit) & 0x1)
+
+/* mstatus */
+#define CSR_MSTATUS_MIE 3
+#define CSR_MSTATUS_MPIE 7
+
+/* mie */
+#define CSR_MIE_MSIE 3 /* machine software interrupt enable*/
+#define CSR_MIE_MTIE 7 /* machine timer interrupt enable */
+#define CSR_MIE_MEIE 11 /* machine external interrupt enable */
+
+/* mip */
+#define CSR_MIP_MSIP 3 /* machine software interrupt enable */
+#define CSR_MIP_MTIP 7 /* machine timer interrupt enable */
+#define CSR_MIP_MEIP 11 /* machine external interrupt enable */
+
+/* mcause */
+#define CSR_MCAUSE_INTERRUPT (1 << 31) /* bit set when the exception is 
+                                          triggered by an interrupt */
+#define CSR_MCAUSE_MSI (0x80000003)
+#define CSR_MCAUSE_MTI (0x80000007)
+#define CSR_MCAUSE_MEI (0x8000000b)
+/* TODO: add other mcause register constants */
+
+
+/* ************************************************************************** */
+
 const char *rname[] = {"zero", "ra", "sp",  "gp",  "tp", "t0", "t1", "t2",
                        "s0",   "s1", "a0",  "a1",  "a2", "a3", "a4", "a5",
                        "a6",   "a7", "s2",  "s3",  "s4", "s5", "s6", "s7",
@@ -171,6 +212,71 @@ void rv32_resume(RV32 *rv32) {
     rv32->status = RV32_RUNNING;
 }
 
+void rv32_handle_interrupt(RV32 *rv32) {
+  rv32->wfi = 0;
+  switch(rv32->mie & rv32->mip) {
+    case 1<<CSR_MIE_MSIE:
+      rv32->mcause = CSR_MCAUSE_MSI;
+      break;
+    case 1<<CSR_MIE_MTIE:
+      rv32->mcause = CSR_MCAUSE_MTI;
+      break;
+    case 1<<CSR_MIE_MEIE:
+      rv32->mcause = CSR_MCAUSE_MEI;
+      break;
+    default:
+      return;  /* unreachable */
+  }
+  rv32->mepc = rv32->pc;
+  CSR_SET_BIT(rv32->mstatus, CSR_MSTATUS_MPIE, CSR_GET_BIT(rv32->mstatus, CSR_MSTATUS_MIE));
+  CSR_SET_BIT(rv32->mstatus, CSR_MSTATUS_MIE, 0);
+  rv32->pc = rv32->mtvec;
+}
+
+static uint32_t rv32_read_csr(RV32 *rv32, uint32_t csr) {
+  switch(csr) {
+    case 0x300:
+      return rv32->mstatus;
+    case 0x304:
+      return rv32->mie;
+    case 0x305:
+      return rv32->mtvec;
+    case 0x341:
+      return rv32->mepc;
+    case 0x342:
+      return rv32->mcause;
+    case 0x344:
+      return rv32->mip;
+    default:
+      return 0;
+  }
+}
+
+static void rv32_write_csr(RV32 *rv32, uint32_t csr, uint32_t val) {
+  switch(csr) {
+    case 0x300:
+      rv32->mstatus = val;
+      break;
+    case 0x304:
+      rv32->mie = val;
+      break;
+    case 0x305:
+      rv32->mtvec = val;
+      break;
+    case 0x341:
+      rv32->mepc = val;
+      break;
+    case 0x342:
+      rv32->mcause = val;
+      break;
+    case 0x344:
+      rv32->mip = val;
+      break;
+    default:
+      break;
+  }
+}
+
 void rv32_cycle(RV32 *rv32) {
   uint32_t instr, addr;
   uint8_t opcode, funct3, funct7;
@@ -179,6 +285,10 @@ void rv32_cycle(RV32 *rv32) {
   uint32_t tmp32;
   int i;
 
+  if(CSR_GET_BIT(rv32->mstatus, CSR_MSTATUS_MIE) && (rv32->mie & rv32->mip))
+    rv32_handle_interrupt(rv32);
+  if(rv32->wfi)
+    return;
   if(rv32->status != RV32_RUNNING)
     return;
   if (rv32->pc >= rv32->mem_size) {
@@ -579,24 +689,71 @@ void rv32_cycle(RV32 *rv32) {
     rv32->pc += 4;
     break;
 
-  case 0x73: /* ecall */
-    switch (IMM_I) {
-    case 0x0: /* ecall */
-      trace("ecall %d\n", rv32->r[17]);
-      ecall(rv32);
-      if(rv32->status != RV32_RUNNING)
+  case 0x73: /* SYSTEM */
+    if(funct3 == 0) {
+      switch (IMM_I) {
+      case 0x0: /* ecall */
+        trace("ecall %d\n", rv32->r[17]);
+        ecall(rv32);
+        if(rv32->status != RV32_RUNNING)
+          return;
+        rv32->pc += 4;
+        break;
+      case 0x1: /* ebreak */
+        trace("ebreak\n");
+        rv32->status = RV32_EBREAK;
+        rv32->pc += 4;
         return;
-      break;
-    case 0x1: /* ebreak */
-      trace("ebreak\n");
-      rv32->status = RV32_EBREAK;
-      return;
-    default:
+      case 0x302: /* mret */
+        rv32->pc = rv32->mepc;
+        CSR_SET_BIT(rv32->mstatus, CSR_MSTATUS_MIE, CSR_GET_BIT(rv32->mstatus, CSR_MSTATUS_MPIE));
+        break;
+      case 0x105: /* wfi */
+        rv32->wfi = 1;
+        rv32->pc += 4;
+        break;
+      default:
+        trace("invalid instruction\n");
+        rv32->status = RV32_INVALID_INSTRUCTION;
+        return;
+      }
+    } else if(funct3 & 0x3) { // Zicsr function
+      uint32_t r_val = rv32_read_csr(rv32, IMM_I);
+      uint32_t w_val = 0;
+      uint32_t imm = RS1;
+      uint32_t rs1 = rv32->r[RS1];
+      switch(funct3) {
+      case 0x1: /* csrrw : atomic read/write  */
+        w_val = rs1;
+        break;
+      case 0x2: /* csrrs : atomic read and set bit */
+        w_val = r_val | rs1;
+        break;
+      case 0x3: /* csrrc : atomic read and clear bit */
+        w_val = r_val & ~rs1;
+        break;
+      case 0x5: /* csrrwi : immediate version of csrrw */
+        w_val = imm;
+        break;
+      case 0x6: /* csrrsi : immediate version of csrrs */
+        w_val = r_val | imm;
+        break;
+      case 0x7: /* csrrci : immediate version of csrrc */
+        w_val = r_val & ~imm;
+        break;
+      default:
+        trace("invalid instruction\n");
+        rv32->status = RV32_INVALID_INSTRUCTION;
+        return;
+      }
+      rv32_write_csr(rv32, IMM_I, w_val);
+      rv32->r[RD] = r_val;
+      rv32->pc += 4;
+    } else {
       trace("invalid instruction\n");
       rv32->status = RV32_INVALID_INSTRUCTION;
       return;
     }
-    rv32->pc += 4;
     break;
   default:
     trace("invalid opcode\n");

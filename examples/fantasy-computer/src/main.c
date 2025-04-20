@@ -107,6 +107,8 @@ int main(int argc, char *argv[]) {
                 for(c = e.text.text; *c; c++)
                     printf("%c", *c);
                 fflush(stdout);
+            } else if(e.type == SDL_KEYDOWN) {
+                CSR_SET_BIT(rv32->mip, CSR_MIP_MEIP, 1); // trigger an interrupt
             }
         }
         SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xff);
@@ -135,10 +137,11 @@ int main(int argc, char *argv[]) {
             default:
                 fprintf(stderr, "Error %d at pc=%08x\n", rv32->status, rv32->pc);
                 fprintf(stderr, "instr = %08x\n", *(uint32_t *)&rv32->mem[rv32->pc]);
+                quit = true;
             }
-        } while((SDL_GetPerformanceCounter() - t_start) / frequency < 1 / (float)FPS);
+        } while(!quit && (SDL_GetPerformanceCounter() - t_start) / frequency < 1 / (float)FPS);
         considered_harmful:
-        printf("%ld\n", clock() - now);
+        //printf("%ld\n", clock() - now);
     }
 
     free(pixels);

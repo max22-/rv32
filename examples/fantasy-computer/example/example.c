@@ -1,7 +1,13 @@
 void print_int(int x)
 {
-  asm("li a7, 2");
-  asm("ecall");
+  register int a0 asm("a0") = x;
+  asm (
+    "li a7, 2\n"
+    "ecall"
+    :
+    : "r"(a0)
+    : "a7"
+  );
 }
 
 unsigned int get_screen_width() {
@@ -31,23 +37,23 @@ void render() {
   asm("ecall");
 }
 
-float my_sqrt(float x) {
+double my_sqrt(double x) {
   print_int(x);
-  float guess = 1.0f;
+  double guess = 1.0f;
   while(guess * guess - x > 0.001)
     guess = (guess + x / guess) / 2.0f;
   return guess;
 }
 
-float my_abs(int x, int y) {
+double my_abs(double x, double y) {
   return x * x + y * y;
 }
 
 static const unsigned int max_iter = 80;
 
-unsigned int mandelbrot(float cx, float cy) {
+unsigned int mandelbrot(double cx, double cy) {
 
-  float zx = 0, zy = 0;
+  double zx = 0, zy = 0;
   unsigned int i;
   for(i = 0; my_abs(zx, zy) <= 4.0f && i < max_iter; i++) {
     zx = zx * zx - zy * zy + cx;
@@ -63,22 +69,35 @@ unsigned short rgb565(unsigned char r, unsigned char g, unsigned char b) {
   return r << 11 | g << 5 | b;
 }
 
+void interrupt_handler() {
+  print_int(42);
+  asm("li t0, 0x800");
+  asm("csrrc x0, mip, t0");
+  asm("mret");
+}
+
 __attribute__((noinline)) int main()
 {
+  asm("csrw mtvec, %0" :: "r"(interrupt_handler));
+  asm("li t0, 0x800");
+  asm("csrrs x0, mie, t0");
+  asm("csrrs x0, mstatus, 0x8");
   unsigned int w = get_screen_width(), h = get_screen_height();
   print_int(w);
   print_int(h);
   volatile unsigned short *pixels = (volatile unsigned short*)0x80000000;
 
-  const int re_start = -2, re_end = 1, im_start = -1, im_end = 1;
-  float cx, cy;
+  const double re_start = -2, re_end = 1, im_start = -1, im_end = 1;
+  double cx, cy;
 
   for(unsigned int y = 0; y < h; y++) {
+    print_int(y);
     for(unsigned int x = 0; x < w; x++) {
-      cx = re_start + ((float)x / w) * (re_end - re_start);
-      cy = im_start + ((float)y / h) * (im_end - im_start);
-      unsigned m = mandelbrot(cx, cy);
-      unsigned char color = 255 - m * 255 / max_iter;
+      if(x == 0 && y == h / 2) { asm volatile ("wfi"); }
+      cx = re_start + ((double)x / w) * (re_end - re_start);
+      cy = im_start + ((double)y / h) * (im_end - im_start);
+      unsigned int m = mandelbrot(cx, cy);
+      unsigned char color = 255 - (double)m * 255 / max_iter;
     pixels[y * w + x] = rgb565(color, color, color);
     }
     render();

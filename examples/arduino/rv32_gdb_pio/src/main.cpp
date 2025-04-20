@@ -40,7 +40,8 @@ rv32_mmio_result_t mmio_store8(uint32_t addr, uint8_t val) {
 }
 rv32_mmio_result_t mmio_store16(uint32_t addr, uint16_t val) { 
   if(addr >= 0x80000000 && addr < 0x80000000 + TFT_WIDTH * TFT_HEIGHT * sizeof(uint16_t) - (sizeof(uint32_t) - 1)) {
-    *(uint32_t*)((uint8_t*)pixels + addr - 0x80000000) = val;
+    uint16_t swapped_val = val << 8 | val >> 8;
+    *(uint32_t*)((uint8_t*)pixels + addr - 0x80000000) = swapped_val;
     return RV32_MMIO_OK;
   }
   return RV32_MMIO_ERR;
@@ -63,6 +64,12 @@ void ecall(RV32 *rv32) {
     break;
   case 5:
     sprite.pushSprite(0, 0);
+    break;
+  case 6:
+    sprite.fillRect(rv32->r[REG_A0], rv32->r[REG_A1], rv32->r[REG_A2], rv32->r[REG_A3], rv32->r[REG_A4]);
+    break;
+  case 7:
+    sprite.drawChar(rv32->r[REG_A0], rv32->r[REG_A1], rv32->r[REG_A2]);
     break;
   case 93: /* exit */
     rv32->status = RV32_HALTED;
