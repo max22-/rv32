@@ -717,7 +717,7 @@ void rv32_cycle(RV32 *rv32) {
         rv32->status = RV32_INVALID_INSTRUCTION;
         return;
       }
-    } else if(funct3 & 0x3) { // Zicsr function
+    } else if(funct3 & 0x3) { /* Zicsr function */
       uint32_t r_val = rv32_read_csr(rv32, IMM_I);
       uint32_t w_val = 0;
       uint32_t imm = RS1;
