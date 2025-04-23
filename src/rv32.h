@@ -29,6 +29,10 @@ typedef struct {
     mcause; /* machine trap cause*/
   /* *** */
   uint8_t wfi; /* wait for interrupt */
+  struct {
+    uint32_t ie; /* interrupt enabled */
+    uint32_t ip; /* interrupt pending */
+  } interrupt_controller;
   uint8_t mem[1];
 } RV32;
 
@@ -190,9 +194,7 @@ rv32_mmio_result_t mmio_store32(uint32_t addr, uint32_t val);
                                           triggered by an interrupt */
 #define CSR_MCAUSE_MSI (0x80000003)
 #define CSR_MCAUSE_MTI (0x80000007)
-#define CSR_MCAUSE_MEI (0x8000000b)
-/* TODO: add other mcause register constants */
-
+/* #define CSR_MCAUSE_MEI (0x8000000b) */ /* not used in this implementation */
 
 /* ************************************************************************** */
 
@@ -203,6 +205,9 @@ const char *rname[] = {"zero", "ra", "sp",  "gp",  "tp", "t0", "t1", "t2",
 
 RV32 *rv32_new(void *memory, uint32_t mem_size) {
   RV32 *rv32 = (RV32 *)memory;
+  uint32_t i;
+  for(i = 0; i < sizeof(RV32); i++)
+      *((uint8_t*)rv32 + i) = 0;
   rv32->mem_size = mem_size;
   return rv32;
 }
@@ -212,25 +217,53 @@ void rv32_resume(RV32 *rv32) {
     rv32->status = RV32_RUNNING;
 }
 
+static int rv32_claim_irq(RV32 *rv32, uint32_t *irq) {
+  uint32_t i;
+  for(i = 0; i < 8 * sizeof(uint32_t); i++) {
+    if(rv32->interrupt_controller.ie & rv32->interrupt_controller.ip) {
+      *irq = i;
+      rv32->interrupt_controller.ip &= ~(1 << i);
+      return 1;
+    }
+  }
+  return 0;
+}
+
 void rv32_handle_interrupt(RV32 *rv32) {
-  rv32->wfi = 0;
+  if(!CSR_GET_BIT(rv32->mstatus, CSR_MSTATUS_MIE))
+    return;
+  
   switch(rv32->mie & rv32->mip) {
-    case 1<<CSR_MIE_MSIE:
+    case 1<<CSR_MIE_MSIE: /* not implemented yet */
       rv32->mcause = CSR_MCAUSE_MSI;
       break;
-    case 1<<CSR_MIE_MTIE:
+    case 1<<CSR_MIE_MTIE: /* not implemented yet */
       rv32->mcause = CSR_MCAUSE_MTI;
       break;
-    case 1<<CSR_MIE_MEIE:
-      rv32->mcause = CSR_MCAUSE_MEI;
+    case 1<<CSR_MIE_MEIE: {
+      uint32_t irq;
+      if(!rv32_claim_irq(rv32, &irq))
+        return;
+      rv32->mcause = CSR_MCAUSE_INTERRUPT | (16 + irq);
       break;
+    }
     default:
-      return;  /* unreachable */
+      return;
   }
+
   rv32->mepc = rv32->pc;
   CSR_SET_BIT(rv32->mstatus, CSR_MSTATUS_MPIE, CSR_GET_BIT(rv32->mstatus, CSR_MSTATUS_MIE));
   CSR_SET_BIT(rv32->mstatus, CSR_MSTATUS_MIE, 0);
-  rv32->pc = rv32->mtvec;
+  uint32_t mask;
+  mask = ~(0x3);
+  const uint32_t base_addr = rv32->mtvec & mask;
+  const int vectored = rv32->mtvec & 1;
+  if(vectored) {
+    rv32->pc = base_addr + 4 * (rv32->mcause & ~(1 << 31));
+  } else {
+    rv32->pc = rv32->mtvec;
+  }
+  rv32->wfi = 0;
 }
 
 static uint32_t rv32_read_csr(RV32 *rv32, uint32_t csr) {
@@ -275,6 +308,13 @@ static void rv32_write_csr(RV32 *rv32, uint32_t csr, uint32_t val) {
     default:
       break;
   }
+}
+
+void rv32_trigger_external_interrupt(RV32 *rv32, uint32_t irq) {
+  if(irq >= sizeof(uint32_t)) /* IRQ between 0 and 31 only */
+    return;
+  CSR_SET_BIT(rv32->mip, CSR_MIP_MEIP, 1);
+  rv32->interrupt_controller.ip |= 1 << irq;
 }
 
 void rv32_cycle(RV32 *rv32) {
