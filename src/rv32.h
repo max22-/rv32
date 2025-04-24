@@ -452,16 +452,16 @@ void rv32_cycle(RV32 *rv32) {
         break;
       case 0x1: /* sll */
         trace("sll %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
-        rv32->r[RD] = rv32->r[RS1] << rv32->r[RS2];
+        rv32->r[RD] = rv32->r[RS1] << (rv32->r[RS2] & 0x1f);
         break;
       case 0x5:
         if (funct7 == 0x0) /* srl */ {
           trace("srl %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
-          rv32->r[RD] = rv32->r[RS1] >> rv32->r[RS2];
+          rv32->r[RD] = rv32->r[RS1] >> (rv32->r[RS2] & 0x1f);
         }
         else if (funct7 == 0x20) /* sra */ {
           trace("sra %s, %s, %s\n", rname[RD], rname[RS1], rname[RS2]);
-          rv32->r[RD] = (int32_t)rv32->r[RS1] >> rv32->r[RS2];
+          rv32->r[RD] = (int32_t)rv32->r[RS1] >> (rv32->r[RS2] & 0x1f);
         }
         else {
           trace("invalid instruction\n");
