@@ -43,11 +43,16 @@ int main(int argc, char *argv[]) {
   fsize = ftell(f);
   if (fsize > ram_size) {
     fprintf(stderr, "Program too big.\n");
+    fclose(f);
+    free(memory);
+    return 1;
   }
   fseek(f, 0, SEEK_SET);
   if (fread(rv32->mem, fsize, 1, f) != 1) {
     fclose(f);
     fprintf(stderr, "Failed to read program\n");
+    free(memory);
+    return 1;
   }
   fclose(f);
 
