@@ -712,6 +712,7 @@ void rv32_cycle(RV32 *rv32) {
     break;
 
   case 0x67: { /* jalr */
+    /* see spec here : https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#jalr */
     trace("jalr %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
     uint32_t t = rv32->pc + 4;
     rv32->pc = (rv32->r[RS1] + SEXT_IMM_I) & ~1;
