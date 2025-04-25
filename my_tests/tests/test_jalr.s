@@ -5,8 +5,8 @@ test_jalr:
     addi sp, sp, -4
     sw ra, 0(sp)
     auipc ra, 0
-    jalr ra, 8
-
+    jalr ra, 12
+    j failure
     j success
     j failure
     j failure
