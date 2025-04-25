@@ -275,6 +275,11 @@ rsp_handler_result_t rsp_continue(RV32* rv32) {
   return RSP_NO_PACKET_SENT;
 }
 
+rsp_handler_result_t rsp_detach(RV32* rv32) {
+  rv32_clear_all_breakpoints(rv32);
+  rv32_resume(rv32);
+  return rsp_packet_quick_send("OK");
+}
 
 #define len(x) (sizeof(x) - 1) /* For const char arrays only */
 #define isprefix(s1, s2) (size >= len(s1) && !strncmp(s1, (const char*)s2, len(s1)))
@@ -302,6 +307,8 @@ rsp_handler_result_t rsp_handle_packet(RV32 *rv32, uint8_t *buffer, size_t size)
     return rsp_clear_software_breakpoint(rv32, buffer, size);
   else if(isprefix("c", buffer))
     return rsp_continue(rv32);
+  else if(isprefix("D", buffer))
+    return rsp_detach(rv32);
   else
     return rsp_packet_quick_send("");
 }

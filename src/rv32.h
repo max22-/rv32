@@ -87,6 +87,7 @@ void rv32_resume(RV32 *rv32);
 void rv32_cycle(RV32 *rv32);
 int rv32_set_breakpoint(RV32*, uint32_t addr);
 int rv32_clear_breakpoint(RV32*, uint32_t addr);
+void rv32_clear_all_breakpoints(RV32*);
 extern void ecall(RV32 *rv32);
 
 typedef enum {
@@ -840,6 +841,13 @@ int rv32_clear_breakpoint(RV32 *rv32, uint32_t addr) {
     }
   }
   return 0;
+}
+
+void rv32_clear_all_breakpoints(RV32* rv32) {
+  int i;
+  rv32->bp_mask = 0;
+  for(i = 0; i < 8; i++)
+    rv32->bp[i] = 0;
 }
 
 #endif /* RV32_IMPLEMENTATION */
