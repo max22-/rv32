@@ -1,11 +1,10 @@
-ENDIANNESS = LITTLE_ENDIAN_HOST # LITTLE_ENDIAN_HOST or BIG_ENDIAN_HOST
-CFLAGS = -O2 -Wall -std=c89 -pedantic
+CFLAGS = -Wall -std=c89 -pedantic -g
 
 all: bin/rv32 bin/asm_program.bin bin/c_program.bin
 
 bin/rv32: examples/embedding/emulator.c examples/embedding/ecall.c src/rv32.h
 	mkdir -p bin
-	gcc -Isrc -D$(ENDIANNESS) examples/embedding/emulator.c examples/embedding/ecall.c -o bin/rv32 $(CFLAGS)
+	gcc -Isrc examples/embedding/emulator.c examples/embedding/ecall.c -o bin/rv32 $(CFLAGS)
 
 bin/asm_program.bin: bin/asm_program.elf
 	mkdir -p bin

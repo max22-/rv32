@@ -3,18 +3,18 @@
 #define RV32_IMPLEMENTATION
 #include "rv32.h"
 
-rv32_mmio_result_t mmio_load8(uint32_t addr, uint8_t *ret) { return RV32_MMIO_ERR; }
-rv32_mmio_result_t mmio_load16(uint32_t addr, uint16_t *ret) { return RV32_MMIO_ERR; }
-rv32_mmio_result_t mmio_load32(uint32_t addr, uint32_t *ret) { return RV32_MMIO_ERR; }
-rv32_mmio_result_t mmio_store8(uint32_t addr, uint8_t val) { 
+rv32_result_t mmio_load8(RV32 *rv32, uint32_t addr, uint8_t *ret) { return RV32_ERR; }
+rv32_result_t mmio_load16(RV32 *rv32, uint32_t addr, uint16_t *ret) { return RV32_ERR; }
+rv32_result_t mmio_load32(RV32 *rv32, uint32_t addr, uint32_t *ret) { return RV32_ERR; }
+rv32_result_t mmio_store8(RV32 *rv32, uint32_t addr, uint8_t val) { 
   if(addr==0x80000000) { 
     printf("%c", val); 
-    return RV32_MMIO_OK;
+    return RV32_OK;
   }
-  return RV32_MMIO_ERR;
+  return RV32_ERR;
 }
-rv32_mmio_result_t mmio_store16(uint32_t addr, uint16_t val) { return RV32_MMIO_ERR; }
-rv32_mmio_result_t mmio_store32(uint32_t addr, uint32_t val) { return RV32_MMIO_ERR; }
+rv32_result_t mmio_store16(RV32 *rv32, uint32_t addr, uint16_t val) { return RV32_ERR; }
+rv32_result_t mmio_store32(RV32 *rv32, uint32_t addr, uint32_t val) { return RV32_ERR; }
 
 int main(int argc, char *argv[]) {
   FILE *f;
@@ -23,6 +23,7 @@ int main(int argc, char *argv[]) {
   const size_t ram_size = 0x20000004; /* The tests write a byte at 0x20000000
                                         so the memory needs to be this big ! */
   uint8_t *memory = NULL;
+  int rc;
 
   if (argc < 2) {
     fprintf(stderr, "Please provide a program to run.\n");
@@ -71,7 +72,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "instruction = 0x%08x\n", *(uint32_t *)&rv32->mem[rv32->pc]);
     }
   }
-  int rc = rv32->status == RV32_HALTED ? rv32->r[REG_A0] : 1;
+  rc = rv32->status == RV32_HALTED ? rv32->r[REG_A0] : 1;
   /*
   printf("exit status: %d\n", rv32->r[REG_A0]);
   printf("\n");

@@ -13,10 +13,10 @@
   X(RV32_INVALID_MEMORY_ACCESS)
 
 #define X(x) x,
-
 typedef enum {
   RV32_STATUS
 } rv32_status_t;
+#undef X
 
 extern const char *rv32_status_name[];
 
@@ -91,17 +91,18 @@ void rv32_clear_all_breakpoints(RV32*);
 extern void ecall(RV32 *rv32);
 
 typedef enum {
-  RV32_MMIO_OK,
-  RV32_MMIO_ERR
-} rv32_mmio_result_t;
+  RV32_OK,
+  RV32_ERR
+} rv32_result_t;
 
-rv32_mmio_result_t mmio_load8(uint32_t addr, uint8_t *ret);
-rv32_mmio_result_t mmio_load16(uint32_t addr, uint16_t *ret);
-rv32_mmio_result_t mmio_load32(uint32_t addr, uint32_t *ret);
+rv32_result_t mmio_load8(RV32 *rv32, uint32_t addr, uint8_t *val);
+rv32_result_t mmio_load16(RV32 *rv32, uint32_t addr, uint16_t *val);
+rv32_result_t mmio_load32(RV32 *rv32, uint32_t addr, uint32_t *val);
 
-rv32_mmio_result_t mmio_store8(uint32_t addr, uint8_t val);
-rv32_mmio_result_t mmio_store16(uint32_t addr, uint16_t val);
-rv32_mmio_result_t mmio_store32(uint32_t addr, uint32_t val);
+rv32_result_t mmio_store8(RV32 *rv32, uint32_t addr, uint8_t val);
+rv32_result_t mmio_store16(RV32 *rv32, uint32_t addr, uint16_t val);
+rv32_result_t mmio_store32(RV32 *rv32, uint32_t addr, uint32_t val);
+
 
 #ifdef RV32_IMPLEMENTATION
 
@@ -133,49 +134,52 @@ rv32_mmio_result_t mmio_store32(uint32_t addr, uint32_t val);
    (instr & 0xff000) | ((instr & 0x80000000) >> 11))
 #define SEXT_IMM_J ((int32_t)SEXT(IMM_J, 20))
 
-#if defined(LITTLE_ENDIAN_HOST)
-#define LOAD8(addr) (*(uint8_t *)(rv32->mem + (addr)))
-#define LOAD16(addr) (*(uint16_t *)(rv32->mem + (addr)))
-#define LOAD32(addr) (*(uint32_t *)(rv32->mem + (addr)))
+static rv32_result_t rv32_load8(RV32 *rv32, uint32_t addr, uint8_t *val) {
+  if(addr <= rv32->mem_size - sizeof(uint8_t)) {
+    *val = *(uint8_t *)(rv32->mem + addr);
+    return RV32_OK;
+  } 
+    return mmio_load8(rv32, addr, val);
+}
+static rv32_result_t rv32_load16(RV32 *rv32, uint32_t addr, uint16_t *val) {
+  if(addr <= rv32->mem_size - sizeof(uint16_t)) {
+    *val = *(uint16_t *)(rv32->mem + addr);
+    return RV32_OK;
+  } 
+    return mmio_load16(rv32, addr, val);
+}
+static rv32_result_t rv32_load32(RV32 *rv32, uint32_t addr, uint32_t *val) {
+  if(addr <= rv32->mem_size - sizeof(uint32_t)) {
+    *val = *(uint32_t *)(rv32->mem + addr);
+    return RV32_OK;
+  } 
+    return mmio_load32(rv32, addr, val);
+}
 
-#define STORE8(addr, val)                                                      \
-  do {                                                                         \
-    *(uint8_t *)(rv32->mem + (addr)) = val;                                    \
-  } while (0)
-#define STORE16(addr, val)                                                     \
-  do {                                                                         \
-    *(uint16_t *)(rv32->mem + (addr)) = val;                                   \
-  } while (0)
-#define STORE32(addr, val)                                                     \
-  do {                                                                         \
-    *(uint32_t *)(rv32->mem + (addr)) = val;                                   \
-  } while (0)
+static rv32_result_t rv32_store8(RV32 *rv32, uint32_t addr, uint8_t val) {
+  if(addr <= rv32->mem_size - sizeof(uint8_t)) {
+    *(uint8_t *)(rv32->mem + addr) = val;
+    return RV32_OK;
+  } 
+    return mmio_store8(rv32, addr, val);
+}
+static rv32_result_t rv32_store16(RV32 *rv32, uint32_t addr, uint16_t val) {
+  if(addr <= rv32->mem_size - sizeof(uint16_t)) {
+    *(uint16_t *)(rv32->mem + addr) = val;
+    return RV32_OK;
+  } 
+    return mmio_store16(rv32, addr, val);
+}
+static rv32_result_t rv32_store32(RV32 *rv32, uint32_t addr, uint32_t val) {
+  if(addr <= rv32->mem_size - sizeof(uint32_t)) {
+    *(uint32_t *)(rv32->mem + addr) = val;
+    return RV32_OK;
+  } 
+    return mmio_store32(rv32, addr, val);
+}
 
-#elif defined(BIG_ENDIAN_HOST)
-#define LOAD8(addr) (*(uint8_t *)(rv32->mem + (addr)))
-#define LOAD16(addr) (LOAD8(addr) | LOAD8((addr) + 1) << 8)
-#define LOAD32(addr)                                                           \
-  (LOAD8(addr) | LOAD8((addr) + 1) << 8 | LOAD8((addr) + 2) << 16 |            \
-   LOAD8((addr) + 3) << 24)
-#define STORE8(addr, val)                                                      \
-  do {                                                                         \
-    *(uint8_t *)(rv32->mem + (addr)) = val;                                    \
-  } while (0)
-#define STORE16(addr, val)                                                     \
-  do {                                                                         \
-    STORE8(addr, (val)&0xff);                                                  \
-    STORE8(addr + 1, ((val) >> 8) & 0xff);                                     \
-  } while (0)
-#define STORE32(addr, val)                                                     \
-  do {                                                                         \
-    STORE8(addr, (val)&0xff);                                                  \
-    STORE8(addr + 1, ((val) >> 8) & 0xff);                                     \
-    STORE8(addr + 2, ((val) >> 16) & 0xff);                                    \
-    STORE8(addr + 3, ((val) >> 24) & 0xff);                                    \
-  } while (0)
-#else
-#error "Please define LITTLE_ENDIAN_HOST or BIG_ENDIAN_HOST macro"
-#endif
+
+
 
 /* CSR stuff **************************************************************** */
 
@@ -358,7 +362,10 @@ void rv32_cycle(RV32 *rv32) {
       }
     }
   }
-  instr = LOAD32(rv32->pc);
+  if(rv32_load32(rv32, rv32->pc, &instr) != RV32_OK) {
+    rv32->status = RV32_INVALID_MEMORY_ACCESS;
+    return;
+  }
   opcode = instr & 0x7f;
   funct3 = (instr >> 12) & 0x7;
   funct7 = (instr >> 25) & 0x7f;
@@ -559,63 +566,43 @@ void rv32_cycle(RV32 *rv32) {
     switch (funct3) {
     case 0x0: /* lb */
       trace("lb %s, %d(%s)\t0x%08x\n", rname[RD], SEXT_IMM_I, rname[RS1], addr);
-      if (addr >= rv32->mem_size) {
-        if(mmio_load8(addr, &tmp8) != RV32_MMIO_OK) {
-          rv32->status = RV32_INVALID_MEMORY_ACCESS;
-          return;
-        }
-        rv32->r[RD] = SEXT(tmp8, 8);
-      } else {
-        rv32->r[RD] = SEXT(LOAD8(addr), 8);
+      if(rv32_load8(rv32, addr, &tmp8) != RV32_OK) {
+        rv32->status = RV32_INVALID_MEMORY_ACCESS;
+        return;
       }
+      rv32->r[RD] = SEXT(tmp8, 8);
       break;
     case 0x1: /* lh */
       trace("lh %s, %d(%s)\t0x%08x\n", rname[RD], SEXT_IMM_I, rname[RS1], addr);
-      if (addr >= rv32->mem_size - 1) {
-        if(mmio_load16(addr, &tmp16) != RV32_MMIO_OK) {
-          rv32->status = RV32_INVALID_MEMORY_ACCESS;
-          return;
-        }
-        rv32->r[RD] = SEXT(tmp16, 16);
-      } else {
-        rv32->r[RD] = SEXT(LOAD16(addr), 16);
+      if(rv32_load16(rv32, addr, &tmp16) != RV32_OK) {
+        rv32->status = RV32_INVALID_MEMORY_ACCESS;
+        return;
       }
+      rv32->r[RD] = SEXT(tmp16, 16);
       break;
     case 0x2: /* lw */
       trace("lw %s, %d(%s)\t0x%08x\n", rname[RD], SEXT_IMM_I, rname[RS1], addr);
-      if (addr >= rv32->mem_size - 3) {
-        if(mmio_load32(addr, &tmp32) != RV32_MMIO_OK) {
-          rv32->status = RV32_INVALID_MEMORY_ACCESS;
-          return;
-        }
-        rv32->r[RD] = tmp32;
-      } else {
-        rv32->r[RD] = LOAD32(addr);
+      if(rv32_load32(rv32, addr, &tmp32) != RV32_OK) {
+        rv32->status = RV32_INVALID_MEMORY_ACCESS;
+        return;
       }
+      rv32->r[RD] = tmp32;
       break;
     case 0x4: /* lbu */
       trace("lbu %s, %d(%s)\n", rname[RD], SEXT_IMM_I, rname[RS1]);
-      if (addr >= rv32->mem_size) {
-        if(mmio_load8(addr, &tmp8) != RV32_MMIO_OK) {
-          rv32->status = RV32_INVALID_MEMORY_ACCESS;
-          return;
-        }
-        rv32->r[RD] = tmp8;
-      } else {
-        rv32->r[RD] = LOAD8(addr);
+      if(rv32_load8(rv32, addr, &tmp8) != RV32_OK) {
+        rv32->status = RV32_INVALID_MEMORY_ACCESS;
+        return;
       }
+      rv32->r[RD] = tmp8;
       break;
     case 0x5: /* lhu */
       trace("lhu %s, %d(%s)\n", rname[RD], SEXT_IMM_I, rname[RS1]);
-      if (addr >= rv32->mem_size - 1) {
-        if(mmio_load16(addr, &tmp16) != RV32_MMIO_OK) {
-          rv32->status = RV32_INVALID_MEMORY_ACCESS;
-          return;
-        }
-        rv32->r[RD] = tmp16;
-      } else {
-        rv32->r[RD] = LOAD16(addr);
+      if(rv32_load16(rv32, addr, &tmp16) != RV32_OK) {
+        rv32->status = RV32_INVALID_MEMORY_ACCESS;
+        return;
       }
+      rv32->r[RD] = tmp16;
       break;
     default:
       trace("invalid instruction\n");
@@ -630,35 +617,23 @@ void rv32_cycle(RV32 *rv32) {
     switch (funct3) {
     case 0x0: /* sb */
       trace("sb %s, %d(%s)\t0x%08x\n", rname[RS2], SEXT_IMM_S, rname[RS1], addr);
-      if (addr >= rv32->mem_size) {
-        if(mmio_store8(addr, rv32->r[RS2] & 0xff) != RV32_MMIO_OK) {
-          rv32->status = RV32_INVALID_MEMORY_ACCESS;
-          return;
-        }
-      } else {
-        STORE8(addr, rv32->r[RS2] & 0xff);
+      if(rv32_store8(rv32, addr, rv32->r[RS2] & 0xff) != RV32_OK) {
+        rv32->status = RV32_INVALID_MEMORY_ACCESS;
+        return;
       }
       break;
     case 0x1: /* sh */
       trace("sh %s, %d(%s)\t0x%08x\n", rname[RS2], SEXT_IMM_S, rname[RS1], addr);
-      if (addr >= rv32->mem_size) {
-        if(mmio_store16(addr, rv32->r[RS2] & 0xffff) != RV32_MMIO_OK) {
-          rv32->status = RV32_INVALID_MEMORY_ACCESS;
-          return;
-        }
-      } else {
-        STORE16(addr, rv32->r[RS2] & 0xffff);
+      if(rv32_store16(rv32, addr, rv32->r[RS2] & 0xffff) != RV32_OK) {
+        rv32->status = RV32_INVALID_MEMORY_ACCESS;
+        return;
       }
       break;
     case 0x2: /* sw */
       trace("sw %s, %d(%s)\t0x%08x\n", rname[RS2], SEXT_IMM_S, rname[RS1], addr);
-      if (addr >= rv32->mem_size - 3) {
-        if(mmio_store32(addr, rv32->r[RS2]) != RV32_MMIO_OK) {
-          rv32->status = RV32_INVALID_MEMORY_ACCESS;
-          return;
-        }
-      } else {
-        STORE32(addr, rv32->r[RS2]);
+      if(rv32_store32(rv32, addr, rv32->r[RS2]) != RV32_OK) {
+        rv32->status = RV32_INVALID_MEMORY_ACCESS;
+        return;
       }
       break;
     default:
@@ -726,14 +701,13 @@ void rv32_cycle(RV32 *rv32) {
     rv32->pc += SEXT_IMM_J;
     break;
 
-  case 0x67: { /* jalr */
+  case 0x67: /* jalr */
     /* see spec here : https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#jalr */
     trace("jalr %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
-    uint32_t t = rv32->pc + 4;
+    tmp32 = rv32->pc + 4;
     rv32->pc = (rv32->r[RS1] + SEXT_IMM_I) & ~1;
-    rv32->r[RD] = t;
+    rv32->r[RD] = tmp32;
     break;
-  }
   case 0x37: /* lui */
     trace("lui %s, %d\n", rname[RD], SEXT_IMM_U);
     rv32->r[RD] = SEXT_IMM_U << 12;
