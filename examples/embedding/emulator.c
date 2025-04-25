@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "ebreak at pc=%08x\n", rv32->pc);
         break;
       default:
-        fprintf(stderr, "Error %d at pc=%08x\n", rv32->status, rv32->pc);
+        fprintf(stderr, "Error %s at pc=%08x\n", rv32_status_name[rv32->status], rv32->pc);
         fprintf(stderr, "instr = %08x\n", *(uint32_t *)&rv32->mem[rv32->pc]);
     }
   }

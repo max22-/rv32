@@ -4,14 +4,21 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define RV32_STATUS \
+  X(RV32_RUNNING) \
+  X(RV32_HALTED) \
+  X(RV32_BREAKPOINT) \
+  X(RV32_EBREAK) \
+  X(RV32_INVALID_INSTRUCTION) \
+  X(RV32_INVALID_MEMORY_ACCESS)
+
+#define X(x) x,
+
 typedef enum {
-  RV32_RUNNING,
-  RV32_HALTED,
-  RV32_BREAKPOINT,
-  RV32_EBREAK,
-  RV32_INVALID_INSTRUCTION,
-  RV32_INVALID_MEMORY_ACCESS
+  RV32_STATUS
 } rv32_status_t;
+
+extern const char *rv32_status_name[];
 
 typedef struct {
   uint32_t mem_size;
@@ -202,6 +209,13 @@ const char *rname[] = {"zero", "ra", "sp",  "gp",  "tp", "t0", "t1", "t2",
                        "s0",   "s1", "a0",  "a1",  "a2", "a3", "a4", "a5",
                        "a6",   "a7", "s2",  "s3",  "s4", "s5", "s6", "s7",
                        "s8",   "s9", "s10", "s11", "t3", "t4", "t5", "t6"};
+
+#define X(x) #x,
+const char *rv32_status_name[] = {
+  RV32_STATUS
+};
+
+#undef X
 
 RV32 *rv32_new(void *memory, uint32_t mem_size) {
   RV32 *rv32 = (RV32 *)memory;
