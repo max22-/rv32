@@ -711,12 +711,13 @@ void rv32_cycle(RV32 *rv32) {
     rv32->pc += SEXT_IMM_J;
     break;
 
-  case 0x67: /* jalr */
+  case 0x67: { /* jalr */
     trace("jalr %s, %s, %d\n", rname[RD], rname[RS1], SEXT_IMM_I);
-    rv32->r[RD] = rv32->pc + 4;
-    rv32->pc = rv32->r[RS1] + SEXT_IMM_I;
+    uint32_t t = rv32->pc + 4;
+    rv32->pc = (rv32->r[RS1] + SEXT_IMM_I) & ~1;
+    rv32->r[RD] = t;
     break;
-
+  }
   case 0x37: /* lui */
     trace("lui %s, %d\n", rname[RD], SEXT_IMM_U);
     rv32->r[RD] = SEXT_IMM_U << 12;
