@@ -614,7 +614,7 @@ void rv32_cycle(RV32 *rv32) {
     addr = rv32->r[RS1] + SEXT_IMM_S;
     switch (funct3) {
     case 0x0: /* sb */
-      trace("sb %s, %d(%s)\t0x%08x\n", rname[RS2], SEXT_IMM_I, rname[RS1], addr);
+      trace("sb %s, %d(%s)\t0x%08x\n", rname[RS2], SEXT_IMM_S, rname[RS1], addr);
       if (addr >= rv32->mem_size) {
         if(mmio_store8(addr, rv32->r[RS2] & 0xff) != RV32_MMIO_OK) {
           rv32->status = RV32_INVALID_MEMORY_ACCESS;
@@ -625,7 +625,7 @@ void rv32_cycle(RV32 *rv32) {
       }
       break;
     case 0x1: /* sh */
-      trace("sh %s, %d(%s)\t0x%08x\n", rname[RS2], SEXT_IMM_I, rname[RS1], addr);
+      trace("sh %s, %d(%s)\t0x%08x\n", rname[RS2], SEXT_IMM_S, rname[RS1], addr);
       if (addr >= rv32->mem_size) {
         if(mmio_store16(addr, rv32->r[RS2] & 0xffff) != RV32_MMIO_OK) {
           rv32->status = RV32_INVALID_MEMORY_ACCESS;
@@ -636,7 +636,7 @@ void rv32_cycle(RV32 *rv32) {
       }
       break;
     case 0x2: /* sw */
-      trace("sw %s, %d(%s)\t0x%08x\n", rname[RS2], SEXT_IMM_I, rname[RS1], addr);
+      trace("sw %s, %d(%s)\t0x%08x\n", rname[RS2], SEXT_IMM_S, rname[RS1], addr);
       if (addr >= rv32->mem_size - 3) {
         if(mmio_store32(addr, rv32->r[RS2]) != RV32_MMIO_OK) {
           rv32->status = RV32_INVALID_MEMORY_ACCESS;
