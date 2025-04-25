@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #define TRACE
-#define LITTLE_ENDIAN_HOST
 #define RSP_IMPLEMENTATION
 #define RV32_IMPLEMENTATION
 #define RSP_SEND(x) \

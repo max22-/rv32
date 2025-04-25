@@ -5,7 +5,6 @@ TFT_eSPI tft;
 TFT_eSprite sprite(&tft);
 
 //#define TRACE
-#define LITTLE_ENDIAN_HOST
 #define RSP_IMPLEMENTATION
 #define RV32_IMPLEMENTATION
 #define RSP_SEND(x) \
