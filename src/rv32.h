@@ -139,21 +139,21 @@ static rv32_result_t rv32_load8(RV32 *rv32, uint32_t addr, uint8_t *val) {
     *val = *(uint8_t *)(rv32->mem + addr);
     return RV32_OK;
   } 
-    return mmio_load8(rv32, addr, val);
+  return mmio_load8(rv32, addr, val);
 }
 static rv32_result_t rv32_load16(RV32 *rv32, uint32_t addr, uint16_t *val) {
   if(addr <= rv32->mem_size - sizeof(uint16_t)) {
     *val = *(uint16_t *)(rv32->mem + addr);
     return RV32_OK;
   } 
-    return mmio_load16(rv32, addr, val);
+  return mmio_load16(rv32, addr, val);
 }
 static rv32_result_t rv32_load32(RV32 *rv32, uint32_t addr, uint32_t *val) {
   if(addr <= rv32->mem_size - sizeof(uint32_t)) {
     *val = *(uint32_t *)(rv32->mem + addr);
     return RV32_OK;
   } 
-    return mmio_load32(rv32, addr, val);
+  return mmio_load32(rv32, addr, val);
 }
 
 static rv32_result_t rv32_store8(RV32 *rv32, uint32_t addr, uint8_t val) {
@@ -161,21 +161,21 @@ static rv32_result_t rv32_store8(RV32 *rv32, uint32_t addr, uint8_t val) {
     *(uint8_t *)(rv32->mem + addr) = val;
     return RV32_OK;
   } 
-    return mmio_store8(rv32, addr, val);
+  return mmio_store8(rv32, addr, val);
 }
 static rv32_result_t rv32_store16(RV32 *rv32, uint32_t addr, uint16_t val) {
   if(addr <= rv32->mem_size - sizeof(uint16_t)) {
     *(uint16_t *)(rv32->mem + addr) = val;
     return RV32_OK;
   } 
-    return mmio_store16(rv32, addr, val);
+  return mmio_store16(rv32, addr, val);
 }
 static rv32_result_t rv32_store32(RV32 *rv32, uint32_t addr, uint32_t val) {
   if(addr <= rv32->mem_size - sizeof(uint32_t)) {
     *(uint32_t *)(rv32->mem + addr) = val;
     return RV32_OK;
   } 
-    return mmio_store32(rv32, addr, val);
+  return mmio_store32(rv32, addr, val);
 }
 
 
