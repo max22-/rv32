@@ -61,16 +61,21 @@ int main(int argc, char *argv[]) {
     switch(rv32->status) {
       case RV32_RUNNING:
         break;
+      case RV32_HALTED:
+        break;
       case RV32_EBREAK:
         fprintf(stderr, "ebreak at pc=%08x\n", rv32->pc);
         break;
       default:
         fprintf(stderr, "Error %s at pc=%08x\n", rv32_status_name[rv32->status], rv32->pc);
-        fprintf(stderr, "instr = %08x\n", *(uint32_t *)&rv32->mem[rv32->pc]);
+        fprintf(stderr, "instruction = 0x%08x\n", *(uint32_t *)&rv32->mem[rv32->pc]);
     }
   }
+  int rc = rv32->status == RV32_HALTED ? rv32->r[REG_A0] : 1;
+  /*
   printf("exit status: %d\n", rv32->r[REG_A0]);
   printf("\n");
+  */
   free(memory);
-  return 0;
+  return rc;
 }
