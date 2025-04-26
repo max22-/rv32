@@ -41,8 +41,6 @@ void rsp_handle_byte(RV32 *, char);
 #define RSP_BUFFER_SIZE 1024
 
 enum rsp_state {RSP_WAIT_START, RSP_PACKET_DATA, RSP_CHECKSUM_1, RSP_CHECKSUM_2, RSP_WAIT_ACK};
-static enum rsp_state rsp_state = RSP_WAIT_START;
-
 typedef enum {RSP_NO_PACKET_SENT, RSP_PACKET_SENT} rsp_handler_result_t;
 
 typedef struct {
@@ -297,7 +295,6 @@ rsp_handler_result_t rsp_continue(RV32* rv32) {
 rsp_handler_result_t rsp_detach(RV32* rv32) {
   rv32_clear_all_breakpoints(rv32);
   rv32_resume(rv32);
-  rsp_state = RSP_WAIT_START;
   return rsp_packet_quick_send("OK");
 }
 
@@ -364,20 +361,21 @@ void rsp_report_signal(enum rsp_signal signal) {
 void rsp_handle_byte(RV32 *rv32, char c) {
   static uint8_t in_buffer[RSP_BUFFER_SIZE], sum1, sum2;
   static size_t iptr;
+  static enum rsp_state state = RSP_WAIT_START;
   rsp_handler_result_t handler_result;
 
-  switch(rsp_state) {
+  switch(state) {
     case RSP_WAIT_START:
       iptr = 0;
       sum1 = sum2 = 0;
-      if(c == '$') rsp_state = RSP_PACKET_DATA;
+      if(c == '$') state = RSP_PACKET_DATA;
       else if(c == 3) {
         rv32->status = RV32_BREAKPOINT;
         rsp_report_signal(RSP_SIGINT);
       }
       break;
     case RSP_PACKET_DATA:
-      if(c == '#') rsp_state = RSP_CHECKSUM_1;
+      if(c == '#') state = RSP_CHECKSUM_1;
       else if(iptr < RSP_BUFFER_SIZE) {
         in_buffer[iptr++] = c;
         sum1 += c;
@@ -386,7 +384,7 @@ void rsp_handle_byte(RV32 *rv32, char c) {
       break;
     case RSP_CHECKSUM_1:
       sum2 = rsp_from_hex_digit(c) << 4;
-      rsp_state = RSP_CHECKSUM_2;
+      state = RSP_CHECKSUM_2;
       break;
     case RSP_CHECKSUM_2:
       sum2 |= rsp_from_hex_digit(c);
@@ -396,12 +394,12 @@ void rsp_handle_byte(RV32 *rv32, char c) {
       } else RSP_SEND("-");
       fflush(stdout);
       if(handler_result == RSP_PACKET_SENT)
-        rsp_state = RSP_WAIT_ACK;
-      else rsp_state = RSP_WAIT_START;
+        state = RSP_WAIT_ACK;
+      else state = RSP_WAIT_START;
       break;
     case RSP_WAIT_ACK:
       if(c == '+')
-        rsp_state = RSP_WAIT_START;
+        state = RSP_WAIT_START;
       else
         RSP_FATAL("gdb didn't acknowledge last packet"); /* TODO: implement re-send */
       break;
