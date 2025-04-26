@@ -83,6 +83,7 @@ enum rv32_register {
 #define RV32_NEEDED_MEMORY(bytes) (sizeof(RV32) + bytes)
 
 RV32 *rv32_new(void *memory, uint32_t mem_size);
+void rv32_reset(RV32 *rv32);
 void rv32_resume(RV32 *rv32);
 void rv32_cycle(RV32 *rv32);
 int rv32_set_breakpoint(RV32*, uint32_t addr);
@@ -237,6 +238,10 @@ RV32 *rv32_new(void *memory, uint32_t mem_size) {
       *((uint8_t*)rv32 + i) = 0;
   rv32->mem_size = mem_size;
   return rv32;
+}
+
+void rv32_reset(RV32 *rv32) {
+  rv32_new((void*)rv32, rv32->mem_size);
 }
 
 void rv32_resume(RV32 *rv32) {
