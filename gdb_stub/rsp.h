@@ -370,7 +370,7 @@ void rsp_handle_byte(RV32 *rv32, char c) {
       sum1 = sum2 = 0;
       if(c == '$') state = RSP_PACKET_DATA;
       else if(c == 3) {
-        rv32->status = RV32_BREAKPOINT;
+        rv32->status = RV32_PAUSED;
         rsp_report_signal(RSP_SIGINT);
       }
       break;
