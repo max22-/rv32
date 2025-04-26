@@ -364,11 +364,7 @@ void rv32_cycle(RV32 *rv32) {
     return;
   if(rv32->status != RV32_RUNNING)
     return;
-  if (rv32->pc >= rv32->mem_size) {
-    rv32->status = RV32_INVALID_MEMORY_ACCESS;
-    return;
-  }
-  else if(rv32->bp_mask) {
+  if(rv32->bp_mask) {
     for(i = 0; i < 8; i++) {
       if(rv32->bp_mask & (1<<i) && rv32->pc == rv32->bp[i]) {
         rv32->status = RV32_PAUSED;
