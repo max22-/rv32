@@ -57,6 +57,8 @@ int main(int argc, char *argv[]) {
   }
   fclose(f);
 
+  rv32->status = RV32_RUNNING;
+
   while (rv32->status == RV32_RUNNING) {
     rv32_cycle(rv32);
     switch(rv32->status) {

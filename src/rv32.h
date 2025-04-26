@@ -7,7 +7,7 @@
 #define RV32_STATUS \
   X(RV32_RUNNING) \
   X(RV32_HALTED) \
-  X(RV32_BREAKPOINT) \
+  X(RV32_PAUSED) \
   X(RV32_EBREAK) \
   X(RV32_INVALID_INSTRUCTION) \
   X(RV32_INVALID_MEMORY_ACCESS)
@@ -237,6 +237,7 @@ RV32 *rv32_new(void *memory, uint32_t mem_size) {
   for(i = 0; i < sizeof(RV32); i++)
       *((uint8_t*)rv32 + i) = 0;
   rv32->mem_size = mem_size;
+  rv32->status = RV32_PAUSED;
   return rv32;
 }
 
@@ -245,7 +246,7 @@ void rv32_reset(RV32 *rv32) {
 }
 
 void rv32_resume(RV32 *rv32) {
-  if(rv32->status == RV32_BREAKPOINT)
+  if(rv32->status == RV32_PAUSED)
     rv32->status = RV32_RUNNING;
 }
 
@@ -370,7 +371,7 @@ void rv32_cycle(RV32 *rv32) {
   else if(rv32->bp_mask) {
     for(i = 0; i < 8; i++) {
       if(rv32->bp_mask & (1<<i) && rv32->pc == rv32->bp[i]) {
-        rv32->status = RV32_BREAKPOINT;
+        rv32->status = RV32_PAUSED;
         return;
       }
     }
