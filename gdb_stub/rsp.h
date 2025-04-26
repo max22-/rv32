@@ -168,6 +168,23 @@ rsp_handler_result_t rsp_write_registers(RV32 *rv32, uint8_t *buffer, size_t siz
     return rsp_packet_quick_send("");
 }
 
+rsp_handler_result_t rsp_write_specific_register(RV32 *rv32, uint8_t *buffer, size_t size) {
+  if(size != 12) /* 'P' + 2 hex digits + '=' + 8 hex digits = 12 bytes*/
+    RSP_FATAL("invalid 'P' message from gdb");
+  buffer++; /* We discard the 'P' */
+  uint8_t reg = rsp_hex_to_u8(buffer);
+  buffer += 3;
+  uint32_t val = rsp_hex_to_u32(buffer);
+  if(reg > 32) {
+    RSP_FATAL("invalid register in P command");
+  } else if(reg == 32) {
+    rv32->pc = val;
+  } else {
+    rv32->r[reg] = val;
+  }
+  return rsp_packet_quick_send("OK");
+}
+
 rsp_handler_result_t rsp_read_memory(RV32 *rv32, uint8_t *buffer, size_t size) {
   rsp_packet_t p;
   uint32_t start = 0, chunk_size = 0;
@@ -284,6 +301,11 @@ rsp_handler_result_t rsp_detach(RV32* rv32) {
   return rsp_packet_quick_send("OK");
 }
 
+rsp_handler_result_t rsp_kill(RV32* rv32) {
+  rv32_reset(rv32);
+  return RSP_NO_PACKET_SENT;
+}
+
 #define len(x) (sizeof(x) - 1) /* For const char arrays only */
 #define isprefix(s1, s2) (size >= len(s1) && !strncmp(s1, (const char*)s2, len(s1)))
 rsp_handler_result_t rsp_handle_packet(RV32 *rv32, uint8_t *buffer, size_t size) {
@@ -300,6 +322,8 @@ rsp_handler_result_t rsp_handle_packet(RV32 *rv32, uint8_t *buffer, size_t size)
     return rsp_read_registers(rv32);
   else if(isprefix("G", buffer))
     return rsp_write_registers(rv32, buffer, size);
+  else if(isprefix("P", buffer))
+    return rsp_write_specific_register(rv32, buffer, size);
   else if(isprefix("m", buffer))
     return rsp_read_memory(rv32, buffer, size);
   else if(isprefix("M", buffer))
@@ -312,6 +336,8 @@ rsp_handler_result_t rsp_handle_packet(RV32 *rv32, uint8_t *buffer, size_t size)
     return rsp_continue(rv32);
   else if(isprefix("D", buffer))
     return rsp_detach(rv32);
+  else if(isprefix("k", buffer))
+    return rsp_kill(rv32);
   else
     return rsp_packet_quick_send("");
 }
