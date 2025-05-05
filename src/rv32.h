@@ -252,11 +252,13 @@ void rv32_resume(RV32 *rv32) {
 
 static int rv32_claim_irq(RV32 *rv32, uint32_t *irq) {
   uint32_t i;
+  if(rv32->interrupt_controller.ie & rv32->interrupt_controller.ip) {
   for(i = 0; i < 8 * sizeof(uint32_t); i++) {
-    if(rv32->interrupt_controller.ie & rv32->interrupt_controller.ip) {
+      if(rv32->interrupt_controller.ip & (1 << i)) {
       *irq = i;
       rv32->interrupt_controller.ip &= ~(1 << i);
       return 1;
+      }
     }
   }
   return 0;
