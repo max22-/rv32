@@ -257,6 +257,8 @@ static int rv32_claim_irq(RV32 *rv32, uint32_t *irq) {
       if(rv32->interrupt_controller.ip & (1 << i)) {
       *irq = i;
       rv32->interrupt_controller.ip &= ~(1 << i);
+      if(rv32->interrupt_controller.ip == 0)  /* if all interrupts are claimed, we clear the external interrupt bit in mip */
+        rv32->mip &= ~(1 << CSR_MIP_MEIP);
       return 1;
       }
     }
